@@ -1,26 +1,30 @@
 # Note: This code was written based on the book "Computer Networking: A Top-Down Approach" by Kurose and Ross, specifically chapter 3.4 
-# 'Principles of Reliable Data Transfer', on reliable data transfer protocols (pipelined sliding window protocol). We are using 
-# Go-Back-N (GBN).
+# 'Principles of Reliable Data Transfer', on reliable data transfer protocols (pipelined sliding window protocol). We are using Go-Back-N (GBN).
 
 # The Receiver class manages the receiving side of reliable data transfer. It handles:
 # 1. Receiving packets from the raw socket.
-# 2. 'Reordering out-of-order packets' by following the expected sequence number and dropping any packets that are duplicated or
-# corrupted.
+# 2. 'Reordering out-of-order packets' by following the expected sequence number and dropping any packets that are duplicated or corrupted.
 # 3. Sending cumulative ACKs.
 # 4. Delivering in-order packets to the application layer.
 
 # The class maintains a receive buffer for out-of-order packets and tracks the expected sequence number.
-# The receiver accepts the next expected packet only. If it receives a packet with a higher sequence number, it buffers it and sends 
-# an ACK for the last in-order packet received. If it receives a packet with the same sequence number, it repeats sending the ACK but 
-# does not deliver it again.
-from SRFT_UDP.cn_project.SRFT_UDP_TCP.config import FLAG_ACK, FLAG_FIN, FLAG_DATA
-from SRFT_UDP.cn_project.SRFT_UDP_TCP.src.protocol.packet import Packet
+# The receiver accepts the next expected packet only. If it receives a packet with a higher sequence number, it buffers it and sends an ACK for 
+# the last in-order packet received. If it receives a packet with the same sequence number, it repeats sending the ACK but does not deliver it again.
+import os
 
+from SRFT_UDP.cn_project.SRFT_UDP_TCP.config import FLAG_ACK, FLAG_FIN
+from SRFT_UDP.cn_project.SRFT_UDP_TCP.src.protocol.packet import Packet
+from SRFT_UDP.cn_project.SRFT_UDP_TCP.src.transport.raw_socket import RawSocket
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from SRFT_UDP_TCP.src.transport import raw_socket
+from utils.file_handler import FileHandler
 class Receiver:
     #Create a constructor for receiver with the raw socket and output file path.
     def __init__(self, raw_socket, output_path):
         self.raw_socket = raw_socket
-        self.file = open(output_path, 'wb')
+        self.file_handler = FileHandler()
+        self.file_handler.open_output_file(output_path)
         self.done = False
         
         self.peer_endpoint_ip = None
@@ -38,9 +42,9 @@ class Receiver:
     #Receive the packets.
     def receive_packets(self):
         while not self.done:
-            packet, source_ip, source_port = self.raw_socket.receive_header()
+            packet, source_ip, source_port = self.raw_socket.receive_packet()
 
-            if packet is not None:
+            if packet is None:
                 continue
 
             self.peer_endpoint_ip = source_ip
@@ -86,22 +90,18 @@ class Receiver:
 
     #Handle an in-order packet (expected sequence number).
     def handle_in_order(self, packet):
-        self.file.write(packet.payload)
-        self.file.flush()
+        self.expected_sequence_number += 1
+        self.valid_packets_received += 1
+    
+        #Deliver the packet to the application layer (write to file).
+        done = self.is_transfer_complete(packet)
+        self.file_handler.write_payload_chunk(packet.payload, done)
         self.send_cumulative_ack(packet.sequence_number)
         #self.flush_buffered_packets()
 
-        self.expected_sequence_number += 1
-        self.received_correct_packets += 1
-        
-        if self.is_transfer_complete(packet):
-            print("Received FIN, transfer complete.")
-            self.done = True
-            self.file.close()
-    
     #Handle an out-of-order packet (higher than expected sequence number).
     def handle_out_of_order(self, packet):
-        self.corrupted_packets += 1
+        self.out_of_order_packets += 1
 
        # self.receive_buffer[packet.sequence_number] = packet  
         self.send_cumulative_ack(self.expected_sequence_number - 1) #?
@@ -111,7 +111,7 @@ class Receiver:
     def handle_duplicate(self, packet):
         self.duplicated_packets += 1
         if self.expected_sequence_number > 0:
-            self.send_cumulative_ack(packet.sequence_number)
+            self.send_cumulative_ack(packet.expected_sequence_number - 1)
             #self.flush_buffered_packets()
 
     #Flush buffered packets if they can now be delivered in order.
@@ -129,10 +129,9 @@ class Receiver:
             print("Peer endpoint not known, cannot send ACK.")
             return
         
-
         ack = Packet(sequence_number = ack_number, flags = FLAG_ACK, payload=b'')
 
-        self.raw_socket.send_header(ack, 
+        self.raw_socket.send_packet(ack, 
                                     source_ip = self.raw_socket.ip, 
                                     source_port = self.raw_socket.port,
                                     destination_ip = self.peer_endpoint_ip, 
@@ -145,3 +144,4 @@ class Receiver:
     def is_transfer_complete(self, packet):
         if packet.flags & FLAG_FIN and self.expected_sequence_number == packet.sequence_number + 1:
             return True
+        return False
