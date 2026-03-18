@@ -45,6 +45,7 @@ class Sender:
         self.lock = threading.Lock()
         
         self.running = True
+        self.failed = False
         
         self.packets_sent = 0
         self.retransmissions = 0
@@ -135,9 +136,10 @@ class Sender:
                     if current_time - send_time > TIMEOUT_INTERVAL:
                         
                         if retry_count >= MAX_RETRIES:
-                            
                             print(f"ERROR: Max retries exceeded for packet {seq_num}")
-                            continue
+                            self.failed = True
+                            self.running = False
+                            break
                         
                         self.send_func(packet)
                         self.retransmissions += 1

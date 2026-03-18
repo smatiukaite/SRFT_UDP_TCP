@@ -17,7 +17,7 @@ from protocol.ip_header import build_ip_header, parse_ip_header
 from protocol.udp_header import build_udp_header, parse_udp_header
 from protocol.packet import Packet, HEADER_SIZE
 from transport.sender import Sender
-from utils.file_handler import read_file_chunks
+from utils.file_handler import FileHandler
 from utils.stats import Stats
 
 
@@ -168,8 +168,11 @@ class SRFTServer:
         
         self.stats.start_time = time.time()
         
-        for chunk in read_file_chunks(filepath, MAX_PAYLOAD_SIZE):
+        file_handler = FileHandler()
+        file_handler.open_input_file(filepath)
+        for chunk in file_handler.read_file_chunks(MAX_PAYLOAD_SIZE):
             self.sender.send_packet(chunk, FLAG_DATA)
+        file_handler.close_input_file()
         
         self.sender.send_packet(b'', FLAG_FIN)
         
