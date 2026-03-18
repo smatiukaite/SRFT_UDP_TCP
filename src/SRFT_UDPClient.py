@@ -8,7 +8,6 @@
 
 #SRFT_UDPClient takes a filename as input and sends that filename to the server to request the download,
 
-from fileinput import filename
 import os
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -45,6 +44,7 @@ class SRFTClient:
         return raw_socket, receiver
     
     #Send a file request to the server by creating a packet with the filename and sending it to the server's IP and port.
+    @staticmethod
     def send_file_request(raw_socket, filename):
         if raw_socket is None:
             print("SRFT Client: Error - Sender not initialized. Cannot send file request.")
@@ -55,6 +55,7 @@ class SRFTClient:
         print(f"SRFT Client: File request for '{filename}' sent to server.")
         
     #Send a file request to the server by creating a packet with the filename and sending it to the server's IP and port.
+    @staticmethod
     def receive_file_data(receiver):
         if receiver is None:
             print("SRFT Client: Error - Receiver not initialized. Cannot receive file data.")
