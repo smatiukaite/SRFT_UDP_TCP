@@ -44,7 +44,6 @@ class Receiver:
             if packet is None:
                 timeout_count += 1
                 if timeout_count >= MAX_TIMEOUTS:
-                    timeout_count += 1
                     print(f"Server may be down because no packet received for too long. Aborting.")
                     break
                 continue
@@ -87,7 +86,7 @@ class Receiver:
        # else:
         if self.last_ack_sent is not None:
             print(f"Sending ACK for last in-order packet with sequence number {self.expected_sequence_number - 1}.")
-            self.send_cumulative_ack(self.expected_sequence_number - 1)
+            self.send_cumulative_ack(self.expected_sequence_number - 1, force=True)
 
     #Handle an in-order packet (expected sequence number).
     def handle_in_order(self, packet):
@@ -108,14 +107,14 @@ class Receiver:
         self.out_of_order_packets += 1
 
         if self.expected_sequence_number > 0:
-            self.send_cumulative_ack(self.expected_sequence_number - 1)
+            self.send_cumulative_ack(self.expected_sequence_number - 1, force=True)
     
     #Handle a duplicate packet (same sequence number as last in-order). Needs retransmission, so we resend the ACK for the last 
     # in-order packet received.
     def handle_duplicate(self, _packet):
         self.duplicated_packets += 1
         if self.expected_sequence_number > 0:
-            self.send_cumulative_ack(self.expected_sequence_number - 1)
+            self.send_cumulative_ack(self.expected_sequence_number - 1, force=True)
             #self.flush_buffered_packets()
 
     #Flush buffered packets if they can now be delivered in order.
@@ -124,8 +123,8 @@ class Receiver:
     #    print(f"Flushing buffered packets starting from expected sequence number {self.expected_sequence_number}.")
     
     #Send a cumulative ACK for the last in-order packet received.
-    def send_cumulative_ack(self, ack_number):
-        if ack_number == self.last_ack_sent:
+    def send_cumulative_ack(self, ack_number, force = False):
+        if ack_number == self.last_ack_sent and not force:
             print(f"ACK for sequence number {ack_number} already sent, not sending duplicate ACK.")
             return
 
