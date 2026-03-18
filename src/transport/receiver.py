@@ -11,9 +11,9 @@
 # The receiver accepts the next expected packet only. If it receives a packet with a higher sequence number, it buffers it and sends an ACK for 
 # the last in-order packet received. If it receives a packet with the same sequence number, it repeats sending the ACK but does not deliver it again.
 
-from src.protocol.packet import Packet
-from config import FLAG_ACK, FLAG_FIN
-from src.utils.file_handler import FileHandler
+from protocol.packet import Packet
+from config import FLAG_ACK, FLAG_FIN, MAX_TIMEOUTS
+from utils.file_handler import FileHandler
 class Receiver:
     #Create a constructor for receiver with the raw socket and output file path.
     def __init__(self, raw_socket, output_path):
@@ -36,11 +36,20 @@ class Receiver:
 
     #Receive the packets.
     def receive_packets(self):
+        timeout_count = 0
+        
         while not self.done:
             packet, source_ip, source_port = self.raw_socket.receive_packet()
 
             if packet is None:
+                if timeout_count >= MAX_TIMEOUTS:
+                    timeout_count += 1
+                    print(f"Receive timeout #{timeout_count}. Server may be down because no packet received for too long. Aborting.")
+                    break
                 continue
+
+            #Reseting the timeout count on every successful packet reception.
+            timeout_count = 0
 
             if self.peer_endpoint_ip is None:
                 self.peer_endpoint_ip = source_ip
@@ -53,23 +62,23 @@ class Receiver:
         self.total_packets_received += 1
 
         #Expected sequence number.
-        if packet.sequence_number == self.expected_sequence_number:
-            print(f"Received in order packet with sequence number {packet.sequence_number}.")
+        if packet.seq_num == self.expected_sequence_number:
+            print(f"Received in order packet with sequence number {packet.seq_num}.")
             self.handle_in_order(packet)
 
         #Duplicate packet.
-        elif packet.sequence_number < self.expected_sequence_number:
-            print(f"Received duplicate packet with sequence number {packet.sequence_number}, expected {self.expected_sequence_number}.")
+        elif packet.seq_num < self.expected_sequence_number:
+            print(f"Received duplicate packet with sequence number {packet.seq_num}, expected {self.expected_sequence_number}.")
             self.handle_duplicate(packet)
         
         #Out of order packet.
         else:
-            print(f"Received out-of-order packet with sequence number {packet.sequence_number}, expected {self.expected_sequence_number}.")
+            print(f"Received out-of-order packet with sequence number {packet.seq_num}, expected {self.expected_sequence_number}.")
             self.handle_out_of_order(packet)
 
     #Handle corrupted packet (a checksum mismatch).
     def handle_corrupted(self, packet):
-        print(f"Received corrupted packet with sequence number {packet.sequence_number}.")
+        print(f"Received corrupted packet with sequence number {packet.seq_num}.")
         self.corrupted_packets += 1
         
        # if self.expected_sequence_number == 0:
@@ -87,7 +96,7 @@ class Receiver:
         #Deliver the packet to the application layer (write to file).
         done = self.is_transfer_complete(packet)
         self.file_handler.write_payload_chunk(packet.payload, done)
-        self.send_cumulative_ack(packet.sequence_number)
+        self.send_cumulative_ack(packet.seq_num)
 
         if done:
             self.done = True
