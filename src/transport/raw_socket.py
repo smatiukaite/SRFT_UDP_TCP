@@ -43,6 +43,9 @@ class RawSocket:
             print(f"Error binding raw socket to {self.ip}: {e}")
             sys.exit(1)
 
+        #Default timeout for receive operations to prevent hanging indefinitely. Can be adjusted by calling set_timeout() if needed.
+        self.sock.settimeout(2.0)
+
     #Send the headers and the packet data.
     def send_packet (self, 
                      packet: Packet, 
@@ -79,6 +82,7 @@ class RawSocket:
             # Skip UDP header (IP header + udp header).
             udp_header_length = 8
             payload_bytes = frame_bytes[ip_header_length + udp_header_length:]
+            
             try:
                 packet = Packet.from_bytes(payload_bytes)
                 return packet, ip_fields['src_ip'], udp_fields['src_port']
