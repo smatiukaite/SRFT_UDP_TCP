@@ -10,11 +10,10 @@
 
 import os
 import sys
-
-from src.protocol.packet import Packet
-from src.transport.raw_socket import RawSocket
-from src.transport.receiver import Receiver
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from protocol.packet import Packet
+from transport.raw_socket import RawSocket
+from transport.receiver import Receiver
 from config import SERVER_PORT, CLIENT_PORT, FLAG_REQ, SERVER_IP
 
 class SRFTClient:
