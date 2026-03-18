@@ -53,23 +53,23 @@ class Receiver:
         self.total_packets_received += 1
 
         #Expected sequence number.
-        if packet.seq_num == self.expected_sequence_number:
-            print(f"Received in order packet with sequence number {packet.seq_num}.")
+        if packet.sequence_numbe == self.expected_sequence_number:
+            print(f"Received in order packet with sequence number {packet.sequence_numbe}.")
             self.handle_in_order(packet)
 
         #Duplicate packet.
-        elif packet.seq_num < self.expected_sequence_number:
-            print(f"Received duplicate packet with sequence number {packet.seq_num}, expected {self.expected_sequence_number}.")
+        elif packet.sequence_numbe < self.expected_sequence_number:
+            print(f"Received duplicate packet with sequence number {packet.sequence_numbe}, expected {self.expected_sequence_number}.")
             self.handle_duplicate(packet)
         
         #Out of order packet.
         else:
-            print(f"Received out-of-order packet with sequence number {packet.seq_num}, expected {self.expected_sequence_number}.")
+            print(f"Received out-of-order packet with sequence number {packet.sequence_numbe}, expected {self.expected_sequence_number}.")
             self.handle_out_of_order(packet)
 
     #Handle corrupted packet (a checksum mismatch).
     def handle_corrupted(self, packet):
-        print(f"Received corrupted packet with sequence number {packet.seq_num}.")
+        print(f"Received corrupted packet with sequence number {packet.sequence_numbe}.")
         self.corrupted_packets += 1
         
        # if self.expected_sequence_number == 0:
