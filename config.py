@@ -4,14 +4,18 @@
 # Central configuration file for the SRFT project.
 # Both client and server import from this file.
 
+import os
+
+#Environment variable to specify the server IP address. The IP should be changed manually for testing in different environments. 
+# This is the default value for local testing.
+SERVER_IP = os.environ.get("SERVER_IP", "127.0.0.1")
+
 SERVER_PORT = 12345
 CLIENT_PORT = 12346
 
-SERVER_IP = ""
-
 IP_PROTOCOL_UDP = 17
 
-MAX_TIMEOUTS = 30
+MAX_TIMEOUTS = 10
 
 MAX_PAYLOAD_SIZE = 1024
 

@@ -42,9 +42,10 @@ class Receiver:
             packet, source_ip, source_port = self.raw_socket.receive_packet()
 
             if packet is None:
+                timeout_count += 1
                 if timeout_count >= MAX_TIMEOUTS:
                     timeout_count += 1
-                    print(f"Receive timeout #{timeout_count}. Server may be down because no packet received for too long. Aborting.")
+                    print(f"Server may be down because no packet received for too long. Aborting.")
                     break
                 continue
 

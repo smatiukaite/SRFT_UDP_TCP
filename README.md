@@ -4,6 +4,63 @@ A custom UDP-based file transfer protocol with optional security (Phase 2). This
 
 ---
 
+## How to run
+
+### Requirements
+- Python 3.12+
+- Administrator/root privileges (required for raw sockets)
+- Both machines must have ports 12345 and 12346 open for UDP traffic
+
+### Configuration
+Before running, set the server IP address in `config.py`:
+```python
+SERVER_IP = "127.0.0.1"  # use 127.0.0.1 for local testing
+                          # replace with server EC2 private IP for AWS testing
+```
+
+### Starting the server
+Run on the server machine with administrator/root privileges:
+```bash
+# Windows (run PowerShell as Administrator):
+cd src
+python SRFT_UDPServer.py 127.0.0.1
+
+# Linux/AWS EC2:
+cd src
+sudo python SRFT_UDPServer.py 
+```
+
+### Starting the client
+Run on the client machine with administrator/root privileges:
+```bash
+# Windows (run PowerShell as Administrator):
+cd src
+python SRFT_UDPClient.py 
+
+# Linux/AWS EC2:
+cd src
+sudo python SRFT_UDPClient.py 
+```
+The requested file must exist in the server's `tests/test_files/` folder.
+The received file will be saved in the `output/` folder.
+
+### AWS testing with packet loss
+```bash
+# Apply 3% packet loss on the client EC2 instance:
+sudo tc qdisc add dev eth0 root netem loss 3%
+
+# Remove packet loss when done:
+sudo tc qdisc del dev eth0 root
+```
+
+### Verifying file integrity
+```bash
+# On Linux, compare MD5 hashes on both machines:
+md5sum tests/test_files/   # on server
+md5sum output/             # on client
+# Both hashes must match for a successful transfer.
+```
+
 ## Project structure
 
 ```
@@ -24,6 +81,7 @@ SRFT/
 └── docs/
     └── meeting_notes.md
 ```
+
 
 ---
 
