@@ -47,29 +47,29 @@ class Receiver:
                 self.peer_endpoint_port = source_port
 
             self.handle_packet(packet)
-               
+
     #Handle a received packet.
     def handle_packet(self, packet):
         self.total_packets_received += 1
 
         #Expected sequence number.
-        if packet.sequence_numbe == self.expected_sequence_number:
-            print(f"Received in order packet with sequence number {packet.sequence_numbe}.")
+        if packet.sequence_number == self.expected_sequence_number:
+            print(f"Received in order packet with sequence number {packet.sequence_number}.")
             self.handle_in_order(packet)
 
         #Duplicate packet.
-        elif packet.sequence_numbe < self.expected_sequence_number:
-            print(f"Received duplicate packet with sequence number {packet.sequence_numbe}, expected {self.expected_sequence_number}.")
+        elif packet.sequence_number < self.expected_sequence_number:
+            print(f"Received duplicate packet with sequence number {packet.sequence_number}, expected {self.expected_sequence_number}.")
             self.handle_duplicate(packet)
         
         #Out of order packet.
         else:
-            print(f"Received out-of-order packet with sequence number {packet.sequence_numbe}, expected {self.expected_sequence_number}.")
+            print(f"Received out-of-order packet with sequence number {packet.sequence_number}, expected {self.expected_sequence_number}.")
             self.handle_out_of_order(packet)
 
     #Handle corrupted packet (a checksum mismatch).
     def handle_corrupted(self, packet):
-        print(f"Received corrupted packet with sequence number {packet.sequence_numbe}.")
+        print(f"Received corrupted packet with sequence number {packet.sequence_number}.")
         self.corrupted_packets += 1
         
        # if self.expected_sequence_number == 0:
