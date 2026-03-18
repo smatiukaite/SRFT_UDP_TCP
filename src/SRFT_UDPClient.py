@@ -68,7 +68,7 @@ class SRFTClient:
         if raw_socket is None:
             return
         try:
-            raw_socket.close()
+            raw_socket.close_socket()
         except Exception as e:
             print(f"SRFT Client: Warning - Error during cleanup: {e}")
 
