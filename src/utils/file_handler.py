@@ -11,12 +11,13 @@
 import os
 import sys
 from config import MAX_PAYLOAD_SIZE
-from typing import Generator, Optional
+
 class FileHandler:
     #Create a constructor for the file handler with the output file path.
     def __init__(self):
         self.input_file = None
         self.output_file = None
+        self.output_path = None
         self.file_path = None
         self.bytes_written = 0
         self.file_size = 0
@@ -47,8 +48,9 @@ class FileHandler:
             
     #Close the file after reading all chunks.    
     def close_input_file(self):
-        self.input_file.close()
-        self.input_file = None
+        if self.input_file is not None:
+            self.input_file.close()
+            self.input_file = None
     
 ## 2. Receiver side: write the received file chunks to disk and reassemble them into the original file.
     #Create a constructor for the file handler with the output file path.
@@ -62,11 +64,13 @@ class FileHandler:
             print("Output file not opened. Call open_output_file() first.")
             return
         
-        self.output_file.write(payload)
-        self.bytes_written += len(payload)
-        self.output_file.flush() #Flush the file buffer to ensure data is written to disk
+        if payload:
+            self.output_file.write(payload)
+            self.bytes_written += len(payload)
         
         if is_last_chunk:
             print(f"Received FIN. The transfer of file {self.output_path} complete. Total bytes written: {self.bytes_written}")
             self.output_file.close()
             self.output_file = None
+        else:
+            self.output_file.flush() #Flush the file buffer to ensure data is written to disk
