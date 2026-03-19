@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from protocol.packet import Packet
 from transport.raw_socket import RawSocket
 from transport.receiver import Receiver
-from config import SERVER_PORT, CLIENT_PORT, FLAG_REQ, SERVER_IP
+from config import SERVER_PORT, CLIENT_PORT, FLAG_REQ, SERVER_IP, CLIENT_IP
 
 class SRFTClient:
     @staticmethod
@@ -90,7 +90,7 @@ class SRFTClient:
             output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'output')
             os.makedirs(output_dir, exist_ok=True)
             output_path = os.path.join(output_dir, filename)
-            raw_socket, receiver = SRFTClient.initialize_client(SERVER_IP, output_path)
+            raw_socket, receiver = SRFTClient.initialize_client(CLIENT_IP, output_path)
 
             print("SRFT Client: Sending file request to server...")
             SRFTClient.send_file_request(raw_socket, filename)

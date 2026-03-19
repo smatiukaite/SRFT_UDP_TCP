@@ -9,6 +9,7 @@ import os
 #Environment variable to specify the server IP address. The IP should be changed manually for testing in different environments. 
 # This is the default value for local testing.
 SERVER_IP = os.environ.get("SERVER_IP", "127.0.0.1")
+CLIENT_IP = os.environ.get("CLIENT_IP", "127.0.0.1")
 
 SERVER_PORT = 12345
 CLIENT_PORT = 12346
