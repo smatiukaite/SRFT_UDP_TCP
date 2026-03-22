@@ -4,7 +4,6 @@
 # The server waits for a file request from the client, then sends the file
 # using our reliable protocol over raw UDP sockets.
 
-import socket
 import threading
 import time
 import os
@@ -13,10 +12,9 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config import SERVER_PORT, CLIENT_PORT, MAX_PAYLOAD_SIZE, FLAG_DATA, FLAG_FIN, FLAG_ACK, FLAG_REQ
-from protocol.ip_header import build_ip_header, parse_ip_header
-from protocol.udp_header import build_udp_header, parse_udp_header
 from protocol.packet import Packet, HEADER_SIZE
 from transport.sender import Sender
+from transport.raw_socket import RawSocket
 from utils.file_handler import FileHandler
 from utils.stats import Stats
 
@@ -48,16 +46,7 @@ class SRFTServer:
         
         self.client_ip = None
         
-       
-        try:
-            self.socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_UDP)
-        except PermissionError:
-            print("ERROR: Raw sockets require root privileges. Run with sudo.")
-            sys.exit(1)
-        
-        self.socket.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
-        
-        self.socket.bind((self.server_ip, SERVER_PORT))
+        self.raw_sock = RawSocket(self.server_ip, SERVER_PORT)
         
         self.stats = Stats()
         
@@ -68,25 +57,8 @@ class SRFTServer:
     def _send_raw_packet(self, packet: Packet):
         """
         Send a Packet object over the raw socket.
-        
-        This builds the IP header, UDP header, and combines with our
-        app-layer packet, then sends the whole thing.
-        
-        Args:
-            packet: Our Packet object to send
         """
-        app_data = packet.to_bytes()
-        
-        
-        udp_header = build_udp_header(SERVER_PORT, CLIENT_PORT, len(app_data))
-        
-        
-        ip_payload_length = len(udp_header) + len(app_data)
-        ip_header = build_ip_header(self.server_ip, self.client_ip, ip_payload_length)
-        
-        raw_packet = ip_header + udp_header + app_data
-        
-        self.socket.sendto(raw_packet, (self.client_ip, CLIENT_PORT))
+        self.raw_sock.send_packet(packet, self.server_ip, SERVER_PORT, self.client_ip, CLIENT_PORT)
     
     def _receive_packet(self) -> tuple:
         """
@@ -95,32 +67,8 @@ class SRFTServer:
         Returns:
             Tuple of (Packet object, source_ip) or (None, None) if invalid
         """
-        try:
-            raw_data, addr = self.socket.recvfrom(65535)
-            
-            ip_info = parse_ip_header(raw_data)
-            
-            if ip_info['protocol'] != 17:
-                return None, None
-            
-            ip_header_len = ip_info['header_length']
-            udp_info = parse_udp_header(raw_data[ip_header_len:])
-            
-            if udp_info['dst_port'] != SERVER_PORT:
-                return None, None
-            
-            app_data_start = ip_header_len + 8  # 8 = UDP header size
-            app_data = raw_data[app_data_start:]
-            
-            try:
-                packet = Packet.from_bytes(app_data)
-                return packet, ip_info['src_ip']
-            except ValueError as e:
-                print(f"Corrupted packet received: {e}")
-                return None, None
-                
-        except socket.timeout:
-            return None, None
+        packet, src_ip, _ = self.raw_sock.receive_packet()
+        return packet, src_ip
     
     def _ack_listener(self):
         """
@@ -217,7 +165,7 @@ class SRFTServer:
                 self.stats.write_report()
                 break
         
-        self.socket.close()
+        self.raw_sock.close_socket()
         print("Server finished.")
 
 
