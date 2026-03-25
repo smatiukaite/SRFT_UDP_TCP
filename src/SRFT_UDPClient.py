@@ -14,7 +14,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from protocol.packet import Packet
 from transport.raw_socket import RawSocket
 from transport.receiver import Receiver
-from config import SERVER_PORT, CLIENT_PORT, FLAG_REQ, SERVER_IP, CLIENT_IP
+from config import MAX_RETRIES, SERVER_PORT, CLIENT_PORT, FLAG_REQ, SERVER_IP, CLIENT_IP, PSK, FLAG_CLIENT_HELLO
+from security.handshake import build_client_hello, parse_server_hello
+from security.crypto import derive_session_keys
+import time
 
 class SRFTClient:
     @staticmethod
@@ -42,7 +45,34 @@ class SRFTClient:
         receiver = Receiver(raw_socket, output_filename)
         
         return raw_socket, receiver
-    
+
+    @staticmethod
+    def perform_handshake(raw_socket):
+        print("SRFT Client: Initiating handshake...")
+        payload, client_nonce = build_client_hello(PSK)
+        hello_packet = Packet(seq_num=0, ack_num=0, flags=FLAG_CLIENT_HELLO, payload=payload)
+
+        retries = MAX_RETRIES
+        while retries > 0:
+            raw_socket.send_packet(hello_packet, raw_socket.ip, CLIENT_PORT, SERVER_IP, SERVER_PORT)
+            start_time = time.time()
+            while time.time() - start_time < 2.0:
+                packet, src_ip, src_port = raw_socket.receive_packet()
+                if packet and packet.is_hello_server():
+                    try:
+                        server_nonce, session_id = parse_server_hello(PSK, client_nonce, packet.payload)
+                        print("SRFT Client: Handshake successful.")
+                        session_keys = derive_session_keys(PSK, client_nonce, server_nonce)
+                        return session_keys, session_id
+                    except Exception as e:
+                        print(f"SRFT Client: Handshake verification failed - {e}")
+                        sys.exit(1)
+            retries -= 1
+            print("SRFT Client: Handshake timeout, retrying...")
+
+        print(f"SRFT Client: Handshake failed after {MAX_RETRIES} retries.")
+        sys.exit(1)
+
     #Send a file request to the server by creating a packet with the filename and sending it to the server's IP and port.
     @staticmethod
     def send_file_request(raw_socket, filename):
@@ -91,6 +121,8 @@ class SRFTClient:
             os.makedirs(output_dir, exist_ok=True)
             output_path = os.path.join(output_dir, filename)
             raw_socket, receiver = SRFTClient.initialize_client(CLIENT_IP, output_path)
+            # TODO Use the session keys and session ID for encrypting/decrypting data packets
+            session_keys, session_id = SRFTClient.perform_handshake(raw_socket)
 
             print("SRFT Client: Sending file request to server...")
             SRFTClient.send_file_request(raw_socket, filename)

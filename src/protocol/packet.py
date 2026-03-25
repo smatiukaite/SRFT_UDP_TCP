@@ -131,7 +131,17 @@ class Packet:
         """Check if this is a file REQUEST packet."""
         from config import FLAG_REQ
         return bool(self.flags & FLAG_REQ)
-    
+
+    def is_hello_client(self) -> bool:
+        """Check if this is a Client Hello packet."""
+        from config import FLAG_CLIENT_HELLO
+        return bool(self.flags & FLAG_CLIENT_HELLO)
+
+    def is_hello_server(self) -> bool:
+        """Check if this is a Server Hello packet."""
+        from config import FLAG_SERVER_HELLO
+        return bool(self.flags & FLAG_SERVER_HELLO)
+
     def __repr__(self) -> str:
         """Pretty print for debugging."""
         flag_names = []
@@ -143,6 +153,10 @@ class Packet:
             flag_names.append('FIN')
         if self.is_request():
             flag_names.append('REQ')
+        if self.is_hello_client():
+            flag_names.append('HELLO_CLIENT')
+        if self.is_hello_server():
+            flag_names.append('HELLO_SERVER')
         
         flags_str = '|'.join(flag_names) if flag_names else 'NONE'
         

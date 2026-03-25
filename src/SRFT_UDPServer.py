@@ -11,12 +11,14 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from config import SERVER_PORT, CLIENT_PORT, MAX_PAYLOAD_SIZE, FLAG_DATA, FLAG_FIN, FLAG_ACK, FLAG_REQ
+from config import SERVER_PORT, CLIENT_PORT, MAX_PAYLOAD_SIZE, FLAG_DATA, FLAG_FIN, FLAG_ACK, FLAG_REQ, PSK, FLAG_SERVER_HELLO
 from protocol.packet import Packet, HEADER_SIZE
 from transport.sender import Sender
 from transport.raw_socket import RawSocket
 from utils.file_handler import FileHandler
 from utils.stats import Stats
+from security.handshake import parse_client_hello, build_server_hello
+from security.crypto import derive_session_keys
 
 
 class SRFTServer:
@@ -51,6 +53,8 @@ class SRFTServer:
         self.stats = Stats()
         
         self.sender = None
+        self.session_keys = None
+        self.session_id = None
         
         self.running = True
     
@@ -154,8 +158,28 @@ class SRFTServer:
             
             if packet is None:
                 continue
-            
+
+            if packet.is_hello_client():
+                try:
+                    print(f"Received ClientHello from {src_ip}")
+                    self.client_ip = src_ip
+                    client_nonce = parse_client_hello(PSK, packet.payload)
+                    payload, server_nonce, session_id = build_server_hello(PSK, client_nonce)
+                    self.session_keys = derive_session_keys(PSK, client_nonce, server_nonce)
+                    self.session_id = session_id
+                    # Send ServerHello
+                    hello_packet = Packet(seq_num=0, ack_num=0, flags=FLAG_SERVER_HELLO, payload=payload)
+                    self.raw_sock.send_packet(hello_packet, self.server_ip, SERVER_PORT, self.client_ip, CLIENT_PORT)
+                    print("Sent ServerHello, handshake complete.")
+                except Exception as e:
+                    print(f"Handshake failed: {e}")
+                continue
+
             if packet.is_request():
+                if self.session_keys is None:
+                    print(f"Ignored request from {src_ip}: Handshake not completed.")
+                    continue
+
                 self.client_ip = src_ip
                 filename = packet.payload.decode('utf-8')
                 print(f"Received request for '{filename}' from {src_ip}")
