@@ -139,7 +139,10 @@ class SRFTServer:
         sender_stats = self.sender.get_stats()
         self.stats.packets_sent = sender_stats['packets_sent']
         self.stats.retransmissions = sender_stats['retransmissions']
-        
+        self.stats.handshake_status = 'Success' if self.session_keys else 'Fail'
+        self.stats.encryption_status = 'Yes' if self.session_keys else 'No'
+        self.stats.aead_failures = self.raw_sock.aead_failures
+
         self.running = False
         self.sender.stop()
     

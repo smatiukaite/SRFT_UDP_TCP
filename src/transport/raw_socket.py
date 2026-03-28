@@ -49,6 +49,7 @@ class RawSocket:
 
         self.session_keys = None
         self.session_id = None
+        self.aead_failures = 0
 
     # Enable encryption/decryption for subsequent packets.
     def enable_crypto(self, session_keys: dict, session_id: bytes):
@@ -117,6 +118,7 @@ class RawSocket:
                 return None, None, None
             except Exception as e:
                 print(f"Packet was dropped! Decryption failed: {e}")
+                self.aead_failures += 1
                 return None, None, None
             
         #Handle socket timeout. If no packet was received, return None, None.

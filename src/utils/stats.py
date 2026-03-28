@@ -12,6 +12,9 @@ class Stats:
         self.packets_received = 0
         self.start_time = 0
         self.end_time = 0
+        self.handshake_status = 'Fail'
+        self.encryption_status = 'No'
+        self.aead_failures = 0
 
     def write_report(self):
         #Calculate transfer duration and format as hh:mm:ss.
@@ -26,6 +29,9 @@ class Stats:
             f"The number of retransmitted packets from the server: {self.retransmissions}\n"
             f"The number of packets received from the client: {self.packets_received}\n"
             f"The time duration of the file transfer: {hours:02}:{mins:02}:{secs:02}\n"
+            f"Handshake status: {self.handshake_status}\n"
+            f"Encryption enabled: {self.encryption_status}\n"
+            f"AEAD authentication failures: {self.aead_failures}\n"
         )
 
         print(report)
