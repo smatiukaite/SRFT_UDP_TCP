@@ -17,6 +17,7 @@ import sys
 from protocol.ip_header import build_ip_header, parse_ip_header
 from protocol.packet import Packet
 from protocol.udp_header import build_udp_header, parse_udp_header
+from security.crypto import encrypt, decrypt, build_aad, NONCE_SIZE
 
 class RawSocket:
     #Create the raw socket and bind it.
@@ -46,6 +47,14 @@ class RawSocket:
         #Default timeout for receive operations to prevent hanging indefinitely. Can be adjusted by calling set_timeout() if needed.
         self.sock.settimeout(2.0)
 
+        self.session_keys = None
+        self.session_id = None
+
+    # Enable encryption/decryption for subsequent packets.
+    def enable_crypto(self, session_keys: dict, session_id: bytes):
+        self.session_keys = session_keys
+        self.session_id = session_id
+
     #Send the headers and the packet data.
     def send_packet (self, 
                      packet: Packet, 
@@ -53,11 +62,19 @@ class RawSocket:
                      source_port: int, 
                      destination_ip: str, 
                      destination_port: int)-> None:
+        # Apply encryption if crypto is enabled
+        if self.session_keys:
+            aad = build_aad(self.session_id, packet.seq_num, packet.ack_num, packet.flags)
+            key = self.session_keys['ack_key'] if packet.is_ack() else self.session_keys['enc_key']
+            nonce, ciphertext = encrypt(key, packet.payload, aad)
+            # Create a new packet with the encrypted payload
+            packet = Packet(packet.seq_num, packet.ack_num, packet.flags, nonce + ciphertext)
+
         payload_bytes = packet.to_bytes()
         udp_header = build_udp_header (source_port, destination_port, len(payload_bytes))
         ip_payload_length = len(udp_header) + len(payload_bytes)
         ip_header = build_ip_header (source_ip, destination_ip, ip_payload_length)
-        
+
         raw_frame = ip_header + udp_header + payload_bytes
         self.sock.sendto(raw_frame, (destination_ip, destination_port))
 
@@ -85,9 +102,21 @@ class RawSocket:
             
             try:
                 packet = Packet.from_bytes(payload_bytes)
+                # Apply decryption if crypto is enabled
+                if self.session_keys:
+                    aad = build_aad(self.session_id, packet.seq_num, packet.ack_num, packet.flags)
+                    nonce = packet.payload[:NONCE_SIZE]
+                    ciphertext = packet.payload[NONCE_SIZE:]
+                    key = self.session_keys['ack_key'] if packet.is_ack() else self.session_keys['enc_key']
+                    plaintext = decrypt(key, nonce, ciphertext, aad)
+                    packet.payload = plaintext
+
                 return packet, ip_fields['src_ip'], udp_fields['src_port']
             except ValueError as e:
                 print(f"Packed was dropped! Corrupted! {e}")
+                return None, None, None
+            except Exception as e:
+                print(f"Packet was dropped! Decryption failed: {e}")
                 return None, None, None
             
         #Handle socket timeout. If no packet was received, return None, None.

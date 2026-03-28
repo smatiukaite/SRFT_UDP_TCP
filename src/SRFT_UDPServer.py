@@ -171,6 +171,7 @@ class SRFTServer:
                     hello_packet = Packet(seq_num=0, ack_num=0, flags=FLAG_SERVER_HELLO, payload=payload)
                     self.raw_sock.send_packet(hello_packet, self.server_ip, SERVER_PORT, self.client_ip, CLIENT_PORT)
                     print("Sent ServerHello, handshake complete.")
+                    self.raw_sock.enable_crypto(self.session_keys, self.session_id)
                 except Exception as e:
                     print(f"Handshake failed: {e}")
                 continue

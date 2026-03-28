@@ -123,6 +123,7 @@ class SRFTClient:
             raw_socket, receiver = SRFTClient.initialize_client(CLIENT_IP, output_path)
             # TODO Use the session keys and session ID for encrypting/decrypting data packets
             session_keys, session_id = SRFTClient.perform_handshake(raw_socket)
+            raw_socket.enable_crypto(session_keys, session_id)
 
             print("SRFT Client: Sending file request to server...")
             SRFTClient.send_file_request(raw_socket, filename)
