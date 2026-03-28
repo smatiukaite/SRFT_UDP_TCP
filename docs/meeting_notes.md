@@ -1,10 +1,11 @@
 # Meeting Notes
 
+- **Attendees:** Kenish, Simona, Hui, Zeyi
+- **Format:** Online
+
 ## Meeting 1 — Jan 16, 2026
 
 - **Date/Time:** January 16, 2026
-- **Attendees:** Kenish, Simona, Hui, Zeyi
-- **Format:** Online
 
 ### Agenda
 
@@ -38,15 +39,19 @@
 
 ## Meeting 2 — Feb 25, 2026
 
-- **Date/Time:** February 25, 2026
-- **Attendees:** Kenish, Simona, Hui, Zeyi
-- **Format:** Online
-
 ### Agenda
 
 - Phase 1 progress check and next steps
 
-### Conclusions
+## Meeting 3 - 9th March, 2026
 
-- Kenish and Simona will continue working on the remaining Phase 1 code logic (client implementation, receiver module, file handler, stats report)
-- Once the code is complete, Hui and Zeyi will proceed with writing and running additional tests for Phase 1
+### Agenda
+
+- Phase 1 progress check and Simona will continue working on the remaining Phase 1 code logic (client implementation, receiver module, file handler, stats report)
+- Hui and Zeyi do phase 1 test
+
+## Meeting 4 - 18th March, 2026
+
+### Agenda
+
+- Phase 1 completed and switch the rols for phase 2
