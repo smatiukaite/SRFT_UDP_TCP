@@ -9,10 +9,11 @@ import threading
 import time
 import os
 import sys
+import argparse
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from config import SERVER_PORT, CLIENT_PORT, MAX_PAYLOAD_SIZE, FLAG_DATA, FLAG_FIN, FLAG_ACK, FLAG_REQ, PSK, FLAG_SERVER_HELLO
+from config import SERVER_IP, SERVER_PORT, CLIENT_PORT, MAX_PAYLOAD_SIZE, FLAG_DATA, FLAG_FIN, FLAG_ACK, FLAG_REQ, PSK, FLAG_SERVER_HELLO
 from protocol.packet import Packet, HEADER_SIZE
 from transport.sender import Sender
 from transport.raw_socket import RawSocket
@@ -36,16 +37,18 @@ class SRFTServer:
     7. Output statistics
     """
     
-    def __init__(self, server_ip: str, files_directory: str = './test_files'):
+    def __init__(self, server_ip: str, files_directory: str = './test_files', secure: bool = True):
         """
         Initialize the server.
         
         Args:
             server_ip: This server's IP address
             files_directory: Where to look for files that clients request
+            secure: Whether to use encryption and handshake
         """
         self.server_ip = server_ip
         self.files_directory = files_directory
+        self.secure = secure
         
         self.client_ip = None
         
@@ -167,6 +170,9 @@ class SRFTServer:
                 continue
 
             if packet.is_hello_client():
+                if not self.secure:
+                    print(f"Ignored ClientHello from {src_ip}: Server is running in insecure mode.")
+                    continue
                 try:
                     print(f"Received ClientHello from {src_ip}")
                     self.client_ip = src_ip
@@ -184,7 +190,7 @@ class SRFTServer:
                 continue
 
             if packet.is_request():
-                if self.session_keys is None:
+                if self.secure and self.session_keys is None:
                     print(f"Ignored request from {src_ip}: Handshake not completed.")
                     continue
 
@@ -204,18 +210,15 @@ class SRFTServer:
 def main():
     """
     Entry point for the server program.
-    
-    Usage: sudo python SRFT_UDPServer.py <server_ip> [files_directory]
     """
-    if len(sys.argv) < 2:
-        print("Usage: sudo python SRFT_UDPServer.py <server_ip> [files_directory]")
-        print("Example: sudo python SRFT_UDPServer.py 192.168.1.100 ./test_files")
-        sys.exit(1)
-    
-    server_ip = sys.argv[1]
-    files_dir = sys.argv[2] if len(sys.argv) > 2 else './test_files'
-    
-    server = SRFTServer(server_ip, files_dir)
+    parser = argparse.ArgumentParser(description="SRFT Server")
+    parser.add_argument("server_ip", help="This server's IP address", default=SERVER_IP)
+    parser.add_argument("files_directory", nargs="?", default="./test_files", help="Directory for requested files")
+    parser.add_argument("--insecure", action="store_true", help="Run without encryption")
+
+    args = parser.parse_args()
+
+    server = SRFTServer(args.server_ip, args.files_directory, secure=not args.insecure)
     server.start()
 
 

@@ -10,6 +10,7 @@
 
 import os
 import sys
+import argparse
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from protocol.packet import Packet
 from transport.raw_socket import RawSocket
@@ -23,19 +24,21 @@ class SRFTClient:
     @staticmethod
     #Parse command line arguments to get the filename to request from the server. Validate the filename and exit with an error message if it's invalid.
     def parse_arguments():
-        if len(sys.argv) != 2:
-            print("SRFT Client: Error - No filename provided. Usage: SRFT_UDPClient.py <filename>")
-            sys.exit(1)
+        parser = argparse.ArgumentParser(description="SRFT Client")
+        parser.add_argument("filename", help="Name of the file to request from the server")
+        parser.add_argument("--insecure", action="store_true", help="Run without encryption")
 
-        #Get the filename from command line.
-        filename = sys.argv[1]
+        args = parser.parse_args()
+
+        filename = args.filename
+        secure = not args.insecure
 
         #If the filename is empty or contains invalid characters, print an error message and exit.
         if not filename or any(c in filename for c in r'<>:"/\|?*'):
             print("SRFT Client: Error - Invalid filename. Filename cannot be empty or contain invalid characters.")
             sys.exit(1)
 
-        return filename
+        return filename, secure
 
     #Initialize the client by creating a raw socket, sender, receiver, and file handler. Return these objects for use in the main function.
     @staticmethod
@@ -106,24 +109,24 @@ class SRFTClient:
     #Handle a corrupted packet by printing a message and dropping the packet. If it's the first packet, do not send an ACK. Otherwise, resend the previous ACK.
     @staticmethod
     def main():
-        print("SRFT Client starting...")
-        print("Please enter file name. Example of command: python SRFT_UDPClient.py fileName.txt")
-
         #Initialize raw_socket to None. Finally clause will call cleanup even if the initialization fails.
         raw_socket = None
 
         try:
             #Handle all validation. Exit on valid input.
-            filename = SRFTClient.parse_arguments()
+            filename, secure = SRFTClient.parse_arguments()
             print(f"Requesting file '{filename}' from server on port {SERVER_PORT}...")
 
             output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'output')
             os.makedirs(output_dir, exist_ok=True)
             output_path = os.path.join(output_dir, filename)
             raw_socket, receiver = SRFTClient.initialize_client(CLIENT_IP, output_path)
-            # TODO Use the session keys and session ID for encrypting/decrypting data packets
-            session_keys, session_id = SRFTClient.perform_handshake(raw_socket)
-            raw_socket.enable_crypto(session_keys, session_id)
+
+            if secure:
+                session_keys, session_id = SRFTClient.perform_handshake(raw_socket)
+                raw_socket.enable_crypto(session_keys, session_id)
+            else:
+                print("SRFT Client: Running in insecure mode (no handshake).")
 
             print("SRFT Client: Sending file request to server...")
             SRFTClient.send_file_request(raw_socket, filename)
