@@ -15,6 +15,8 @@ class Stats:
         self.handshake_status = 'Fail'
         self.encryption_status = 'No'
         self.aead_failures = 0
+        self.replay_drops = 0
+        self.sha256_match = None
 
     def write_report(self):
         #Calculate transfer duration and format as hh:mm:ss.
@@ -32,6 +34,8 @@ class Stats:
             f"Handshake status: {self.handshake_status}\n"
             f"Encryption enabled: {self.encryption_status}\n"
             f"AEAD authentication failures: {self.aead_failures}\n"
+            f"Replay packets dropped: {self.replay_drops}\n"
+            f"SHA-256 file verification: {'Match' if self.sha256_match is True else 'Mismatch' if self.sha256_match is False else 'N/A'}\n"
         )
 
         print(report)

@@ -131,6 +131,14 @@ class SRFTClient:
             print("SRFT Client: Waiting for server response...")
             SRFTClient.receive_file_data(receiver)
 
+            if receiver.hash_match is True:
+                print("SRFT Client: SHA-256 file verification: Match")
+            elif receiver.hash_match is False:
+                print("SRFT Client: SHA-256 file verification: Mismatch!")
+            else:
+                print("SRFT Client: SHA-256 file verification: N/A")
+
+            print(f"SRFT Client: Replay packets dropped: {raw_socket.replay_drops}")
             print("SFRT Client: File transfer complete. Closing connection...")
 
         except Exception as e:

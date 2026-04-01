@@ -18,6 +18,7 @@ from protocol.ip_header import build_ip_header, parse_ip_header
 from protocol.packet import Packet
 from protocol.udp_header import build_udp_header, parse_udp_header
 from security.crypto import encrypt, decrypt, build_aad, NONCE_SIZE
+from security.replay import ReplayDetector
 
 class RawSocket:
     #Create the raw socket and bind it.
@@ -50,11 +51,14 @@ class RawSocket:
         self.session_keys = None
         self.session_id = None
         self.aead_failures = 0
+        self.replay_detector = None
+        self.replay_drops = 0
 
     # Enable encryption/decryption for subsequent packets.
     def enable_crypto(self, session_keys: dict, session_id: bytes):
         self.session_keys = session_keys
         self.session_id = session_id
+        self.replay_detector = ReplayDetector()
 
     #Send the headers and the packet data.
     def send_packet (self, 
@@ -111,6 +115,12 @@ class RawSocket:
                     key = self.session_keys['ack_key'] if packet.is_ack() else self.session_keys['enc_key']
                     plaintext = decrypt(key, nonce, ciphertext, aad)
                     packet.payload = plaintext
+
+                if self.replay_detector and not packet.is_ack():
+                    if not self.replay_detector.check_and_update(packet.seq_num):
+                        print(f"Replay detected! Dropping packet with seq_num {packet.seq_num}")
+                        self.replay_drops += 1
+                        return None, None, None
 
                 return packet, ip_fields['src_ip'], udp_fields['src_port']
             except ValueError as e:

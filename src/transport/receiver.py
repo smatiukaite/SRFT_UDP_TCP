@@ -11,6 +11,7 @@
 # The receiver accepts the next expected packet only. If it receives a packet with a higher sequence number, it buffers it and sends an ACK for 
 # the last in-order packet received. If it receives a packet with the same sequence number, it repeats sending the ACK but does not deliver it again.
 
+import hashlib
 from protocol.packet import Packet
 from config import FLAG_ACK, FLAG_FIN, MAX_TIMEOUTS
 from utils.file_handler import FileHandler
@@ -27,6 +28,9 @@ class Receiver:
        # self.receive_buffer = {}    # sequence_number -> packet
         self.expected_sequence_number = 0
         self.last_ack_sent = None
+
+        self.sha256 = hashlib.sha256()
+        self.hash_match = None
 
         self.total_packets_received = 0
         self.valid_packets_received = 0
@@ -92,10 +96,22 @@ class Receiver:
     def handle_in_order(self, packet):
         self.expected_sequence_number += 1
         self.valid_packets_received += 1
-    
+
         #Deliver the packet to the application layer (write to file).
         done = self.is_transfer_complete(packet)
-        self.file_handler.write_payload_chunk(packet.payload, done)
+        if done:
+            # FIN packet: payload is the 32-byte SHA-256 digest from sender
+            expected_hash = packet.payload
+            if len(expected_hash) == 32:
+                self.hash_match = (self.sha256.digest() == expected_hash)
+                if self.hash_match:
+                    print("SHA-256 file verification: Match")
+                else:
+                    print("SHA-256 file verification: Mismatch!")
+            self.file_handler.write_payload_chunk(b'', done)
+        else:
+            self.sha256.update(packet.payload)
+            self.file_handler.write_payload_chunk(packet.payload, done)
         self.send_cumulative_ack(packet.seq_num)
 
         if done:

@@ -4,6 +4,7 @@
 # The server waits for a file request from the client, then sends the file
 # using our reliable protocol over raw UDP sockets.
 
+import hashlib
 import threading
 import time
 import os
@@ -120,13 +121,15 @@ class SRFTServer:
         
         self.stats.start_time = time.time()
         
+        sha256 = hashlib.sha256()
         file_handler = FileHandler()
         file_handler.open_input_file(filepath)
         for chunk in file_handler.read_file_chunks(MAX_PAYLOAD_SIZE):
+            sha256.update(chunk)
             self.sender.send_packet(chunk, FLAG_DATA)
         file_handler.close_input_file()
-        
-        self.sender.send_packet(b'', FLAG_FIN)
+
+        self.sender.send_packet(sha256.digest(), FLAG_FIN)
         
         print("Waiting for all ACKs...")
         if self.sender.wait_for_completion(timeout=60.0):
@@ -142,6 +145,7 @@ class SRFTServer:
         self.stats.handshake_status = 'Success' if self.session_keys else 'Fail'
         self.stats.encryption_status = 'Yes' if self.session_keys else 'No'
         self.stats.aead_failures = self.raw_sock.aead_failures
+        self.stats.replay_drops = self.raw_sock.replay_drops
 
         self.running = False
         self.sender.stop()
