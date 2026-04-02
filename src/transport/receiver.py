@@ -3,35 +3,43 @@
 
 # The Receiver class manages the receiving side of reliable data transfer. It handles:
 # 1. Receiving packets from the raw socket.
-# 2. 'Reordering out-of-order packets' by following the expected sequence number and dropping any packets that are duplicated or corrupted.
+# 2. Accepting only the next expected packet, dropping duplicates/out-of-order packets, and sending cumulative ACKs.
 # 3. Sending cumulative ACKs.
 # 4. Delivering in-order packets to the application layer.
 
-# The class maintains a receive buffer for out-of-order packets and tracks the expected sequence number.
-# The receiver accepts the next expected packet only. If it receives a packet with a higher sequence number, it buffers it and sends an ACK for 
-# the last in-order packet received. If it receives a packet with the same sequence number, it repeats sending the ACK but does not deliver it again.
-
 import hashlib
+import time
 from protocol.packet import Packet
 from config import FLAG_ACK, FLAG_FIN, MAX_TIMEOUTS
 from utils.file_handler import FileHandler
 class Receiver:
+    ACK_EVERY_N_PACKETS = 4
+    ACK_DELAY_SECONDS = 0.075
+
     #Create a constructor for receiver with the raw socket and output file path.
     def __init__(self, raw_socket, output_path):
         self.raw_socket = raw_socket
         self.file_handler = FileHandler()
         self.file_handler.open_output_file(output_path)
         self.done = False
-        
+
         self.peer_endpoint_ip = None
         self.peer_endpoint_port = None
-       # self.receive_buffer = {}    # sequence_number -> packet
+
+        #Go-Back-N style receiver state
         self.expected_sequence_number = 0
         self.last_ack_sent = None
 
+        #Delayed ACK state
+        self.pending_ack_deadline = None
+        self.pending_ack_number = None
+        self.in_order_since_last_ack = 0
+
+        #Phase 2: SHA-256 file integrity verification state
         self.sha256 = hashlib.sha256()
         self.hash_match = None
 
+        #Statistics tracking
         self.total_packets_received = 0
         self.valid_packets_received = 0
         self.corrupted_packets = 0
@@ -44,8 +52,12 @@ class Receiver:
         
         while not self.done:
             packet, source_ip, source_port = self.raw_socket.receive_packet()
+            now = time.time()
 
             if packet is None:
+                #No packet received, likely a timeout. Increment the timeout count and check if we should abort.
+                self.maybe_send_delayed_ack(now)
+
                 timeout_count += 1
                 if timeout_count >= MAX_TIMEOUTS:
                     print(f"Server may be down because no packet received for too long. Aborting.")
@@ -59,16 +71,19 @@ class Receiver:
                 self.peer_endpoint_ip = source_ip
                 self.peer_endpoint_port = source_port
 
-            self.handle_packet(packet)
+            self.handle_packet(packet, now)
 
     #Handle a received packet.
-    def handle_packet(self, packet):
+    def handle_packet(self, packet, now = None):
+        if now is None:
+            now = time.time()
+
         self.total_packets_received += 1
 
         #Expected sequence number.
         if packet.seq_num == self.expected_sequence_number:
             print(f"Received in order packet with sequence number {packet.seq_num}.")
-            self.handle_in_order(packet)
+            self.handle_in_order(packet, now)
 
         #Duplicate packet.
         elif packet.seq_num < self.expected_sequence_number:
@@ -85,15 +100,15 @@ class Receiver:
         print(f"Received corrupted packet with sequence number {packet.seq_num}.")
         self.corrupted_packets += 1
         
-       # if self.expected_sequence_number == 0:
-       #     print("First packet is corrupted, no ACK sent.")
-       # else:
-        if self.last_ack_sent is not None:
+        if self.expected_sequence_number > 0:
             print(f"Sending ACK for last in-order packet with sequence number {self.expected_sequence_number - 1}.")
-            self.send_cumulative_ack(self.expected_sequence_number - 1, force=True)
+            self.send_cumulative_ack(self.expected_sequence_number - 1, force = True)
 
     #Handle an in-order packet (expected sequence number).
-    def handle_in_order(self, packet):
+    def handle_in_order(self, packet, now = None):
+        if now is None:
+            now = time.time()
+            
         self.expected_sequence_number += 1
         self.valid_packets_received += 1
 
@@ -112,17 +127,27 @@ class Receiver:
         else:
             self.sha256.update(packet.payload)
             self.file_handler.write_payload_chunk(packet.payload, done)
-        self.send_cumulative_ack(packet.seq_num)
+            
+        self.pending_ack_number = packet.seq_num
+        self.in_order_since_last_ack += 1
+
+        #Start the ACK delay timer if it's not running already.
+        if self.pending_ack_deadline is None:
+            self.pending_ack_deadline = now + self.ACK_DELAY_SECONDS
+
+        #Forse immediate ACK if we have reached the threshold of in-order packets since last ACK, or if this is the last packet (FIN).
+        if done or self.in_order_since_last_ack >= self.ACK_EVERY_N_PACKETS:
+            self.flush_pending_ack(force = False)
 
         if done:
             self.done = True
-        #self.flush_buffered_packets()
 
     #Handle an out-of-order packet (higher than expected sequence number).
     def handle_out_of_order(self, _packet):
         self.out_of_order_packets += 1
 
         if self.expected_sequence_number > 0:
+            self.flush_pending_ack(force = False)
             self.send_cumulative_ack(self.expected_sequence_number - 1, force=True)
     
     #Handle a duplicate packet (same sequence number as last in-order). Needs retransmission, so we resend the ACK for the last 
@@ -130,14 +155,25 @@ class Receiver:
     def handle_duplicate(self, _packet):
         self.duplicated_packets += 1
         if self.expected_sequence_number > 0:
-            self.send_cumulative_ack(self.expected_sequence_number - 1, force=True)
-            #self.flush_buffered_packets()
-
-    #Flush buffered packets if they can now be delivered in order.
-    #def flush_buffered_packets(self):
-    #    
-    #    print(f"Flushing buffered packets starting from expected sequence number {self.expected_sequence_number}.")
+            self.flush_pending_ack(force = False)
+            self.send_cumulative_ack(self.expected_sequence_number - 1, force = True)
     
+    def maybe_send_delayed_ack(self, now = None):
+        if now is None:
+            now = time.time()
+
+        if (self.pending_ack_number is not None and self.pending_ack_deadline is not None and now >= self.pending_ack_deadline):
+            self.flush_pending_ack(force = False)
+
+    def flush_pending_ack(self, force = False):
+        if self.pending_ack_number is None:
+            return
+        
+        self.send_cumulative_ack(self.pending_ack_number, force = force)
+        self.pending_ack_number = None
+        self.pending_ack_deadline = None
+        self.in_order_since_last_ack = 0
+
     #Send a cumulative ACK for the last in-order packet received.
     def send_cumulative_ack(self, ack_number, force = False):
         if ack_number == self.last_ack_sent and not force:
