@@ -118,6 +118,7 @@ class SRFTServer:
         print(f"Sending file: {filename} ({file_size} bytes)")
         
         self.sender = Sender(self._send_raw_packet)
+        self.running = True
         
         ack_thread = threading.Thread(target=self._ack_listener, daemon=True)
         ack_thread.start()
@@ -201,7 +202,14 @@ class SRFTServer:
                 self._send_file(filename)
                 
                 self.stats.write_report()
-                break
+                
+                # Reset state to accept the next file request
+                self.stats = Stats()
+                self.session_keys = None
+                self.session_id = None
+                self.client_ip = None
+                self.raw_sock.enable_crypto(None, None)
+                print("\nWaiting for next file request...")
         
         self.raw_sock.close_socket()
         print("Server finished.")
