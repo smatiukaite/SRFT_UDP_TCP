@@ -12,8 +12,8 @@ class Stats:
         self.packets_received = 0
         self.start_time = 0
         self.end_time = 0
-        self.handshake_status = 'Fail'
-        self.encryption_status = 'No'
+        self.encryption_enabled = False
+        self.handshake_success = False
         self.aead_failures = 0
         self.replay_drops = 0
         self.sha256_match = None
@@ -31,8 +31,8 @@ class Stats:
             f"The number of retransmitted packets from the server: {self.retransmissions}\n"
             f"The number of packets received from the client: {self.packets_received}\n"
             f"The time duration of the file transfer: {hours:02}:{mins:02}:{secs:02}\n"
-            f"Handshake status: {self.handshake_status}\n"
-            f"Encryption enabled: {self.encryption_status}\n"
+            f"Encryption enabled: {self.encryption_enabled}\n"
+            f"Handshake successful: {self.handshake_success}\n"
             f"AEAD authentication failures: {self.aead_failures}\n"
             f"Replay packets dropped: {self.replay_drops}\n"
             f"SHA-256 file verification: {'Match' if self.sha256_match is True else 'Mismatch' if self.sha256_match is False else 'N/A'}\n"
@@ -40,7 +40,8 @@ class Stats:
 
         print(report)
 
-        #Write report to output folder.
-        with open('transfer_report.txt', 'w') as f:
+        # Write report to output file.
+        with open('transfer_report.txt', 'a') as f:
             f.write(report)
+            f.write("\n" + "-" * 60 + "\n")
         print("Transfer report saved to transfer_report.txt")

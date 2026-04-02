@@ -82,7 +82,8 @@ class Receiver:
 
         #Expected sequence number.
         if packet.seq_num == self.expected_sequence_number:
-            print(f"Received in order packet with sequence number {packet.seq_num}.")
+            if packet.seq_num % 500 == 0:
+                print(f"Received in order packet with sequence number {packet.seq_num}...")
             self.handle_in_order(packet, now)
 
         #Duplicate packet.
@@ -193,7 +194,8 @@ class Receiver:
                                     destination_port = self.peer_endpoint_port)
         
         self.last_ack_sent = ack_number
-        print(f"Sent ACK for sequence number {ack_number}.")
+        if ack_number % 500 == 0:
+            print(f"Sent ACK for sequence number {ack_number}...")
     
     #Check if the transfer is complete, meaning we received FLAG_FIN = 1 and all packets up to FIN were delivered.
     def is_transfer_complete(self, packet):
