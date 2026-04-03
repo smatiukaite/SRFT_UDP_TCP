@@ -13,8 +13,9 @@ from protocol.packet import Packet
 from config import FLAG_ACK, FLAG_FIN, MAX_TIMEOUTS
 from utils.file_handler import FileHandler
 class Receiver:
-    ACK_EVERY_N_PACKETS = 4
-    ACK_DELAY_SECONDS = 0.075
+    ACK_EVERY_N_PACKETS = 16
+    ACK_DELAY_SECONDS = 0.01
+    DEBUG = False
 
     #Create a constructor for receiver with the raw socket and output file path.
     def __init__(self, raw_socket, output_path):
@@ -82,27 +83,31 @@ class Receiver:
 
         #Expected sequence number.
         if packet.seq_num == self.expected_sequence_number:
-            if packet.seq_num % 500 == 0:
+            if self.DEBUG and packet.seq_num % 500 == 0:
                 print(f"Received in order packet with sequence number {packet.seq_num}...")
             self.handle_in_order(packet, now)
 
         #Duplicate packet.
         elif packet.seq_num < self.expected_sequence_number:
-            print(f"Received duplicate packet with sequence number {packet.seq_num}, expected {self.expected_sequence_number}.")
+            if self.DEBUG:
+                print(f"Received duplicate packet with sequence number {packet.seq_num}, expected {self.expected_sequence_number}.")
             self.handle_duplicate(packet)
         
         #Out of order packet.
         else:
-            print(f"Received out-of-order packet with sequence number {packet.seq_num}, expected {self.expected_sequence_number}.")
+            if self.DEBUG:
+                print(f"Received out-of-order packet with sequence number {packet.seq_num}, expected {self.expected_sequence_number}.")
             self.handle_out_of_order(packet)
 
     #Handle corrupted packet (a checksum mismatch).
     def handle_corrupted(self, packet):
-        print(f"Received corrupted packet with sequence number {packet.seq_num}.")
+        if self.DEBUG:
+            print(f"Received corrupted packet with sequence number {packet.seq_num}.")
         self.corrupted_packets += 1
         
         if self.expected_sequence_number > 0:
-            print(f"Sending ACK for last in-order packet with sequence number {self.expected_sequence_number - 1}.")
+            if self.DEBUG:
+                print(f"Sending ACK for last in-order packet with sequence number {self.expected_sequence_number - 1}.")
             self.send_cumulative_ack(self.expected_sequence_number - 1, force = True)
 
     #Handle an in-order packet (expected sequence number).
@@ -155,6 +160,7 @@ class Receiver:
     # in-order packet received.
     def handle_duplicate(self, _packet):
         self.duplicated_packets += 1
+        
         if self.expected_sequence_number > 0:
             self.flush_pending_ack(force = False)
             self.send_cumulative_ack(self.expected_sequence_number - 1, force = True)
@@ -178,11 +184,13 @@ class Receiver:
     #Send a cumulative ACK for the last in-order packet received.
     def send_cumulative_ack(self, ack_number, force = False):
         if ack_number == self.last_ack_sent and not force:
-            print(f"ACK for sequence number {ack_number} already sent, not sending duplicate ACK.")
+            if self.DEBUG:
+                print(f"ACK for sequence number {ack_number} already sent, not sending duplicate ACK.")
             return
 
         if self.peer_endpoint_ip is None or self.peer_endpoint_port is None:
-            print("Peer endpoint not known, cannot send ACK.")
+            if self.DEBUG:
+                print("Peer endpoint not known, cannot send ACK.")
             return
         
         ack = Packet(seq_num = ack_number, ack_num = ack_number, flags = FLAG_ACK, payload = b'')
@@ -194,7 +202,7 @@ class Receiver:
                                     destination_port = self.peer_endpoint_port)
         
         self.last_ack_sent = ack_number
-        if ack_number % 500 == 0:
+        if self.DEBUG and ack_number % 500 == 0:
             print(f"Sent ACK for sequence number {ack_number}...")
     
     #Check if the transfer is complete, meaning we received FLAG_FIN = 1 and all packets up to FIN were delivered.
