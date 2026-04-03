@@ -68,12 +68,9 @@ class FileHandler:
             self.output_file.write(payload)
             self.bytes_written += len(payload)
         
-        if is_last_chunk:
-            print(f"Received FIN. The transfer of file {self.output_path} complete. Total bytes written: {self.bytes_written}")
-            self.output_file.close()
-            self.output_file = None
-        
         #Close the file at the end and in this way flush the buffered data to disk (we don't need to call flush() on every chunk). 
         #This increases performance by reducing the number of disk writes during large transfers.
         if is_last_chunk:
+            print(f"Received FIN. The transfer of file {self.output_path} complete. Total bytes written: {self.bytes_written}")
             self.output_file.close() #close() flushes Python buffer.
+            self.output_file = None
