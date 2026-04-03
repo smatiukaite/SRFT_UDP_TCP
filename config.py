@@ -15,16 +15,13 @@ CLIENT_PORT = 12346
 
 MAX_TIMEOUTS = 10
 
-MAX_PAYLOAD_SIZE = 1024
+MAX_PAYLOAD_SIZE = 8192  # Max size of the plaintext payload in each packet
 
+WINDOW_SIZE = 32
 
-WINDOW_SIZE = 4
-
-
-TIMEOUT_INTERVAL = 0.5
+TIMEOUT_INTERVAL = 0.2
 
 MAX_RETRIES = 10
-
 
 FLAG_DATA = 0x01  # This packet carries file data
 FLAG_ACK = 0x02  # This packet is an acknowledgment
