@@ -21,6 +21,7 @@ from utils.file_handler import FileHandler
 from utils.stats import Stats
 from security.handshake import parse_client_hello, build_server_hello
 from security.crypto import derive_session_keys
+from security.attack import AttackInterceptor
 
 
 class SRFTServer:
@@ -37,7 +38,7 @@ class SRFTServer:
     7. Output statistics
     """
     
-    def __init__(self, server_ip: str, files_directory: str = './test_files', secure: bool = True):
+    def __init__(self, server_ip: str, files_directory: str = './test_files', secure: bool = True, attack_mode: str = None):
         """
         Initialize the server.
         
@@ -61,6 +62,7 @@ class SRFTServer:
         self.session_id = None
         
         self.running = True
+        self.attack_mode = attack_mode
     
     def _send_raw_packet(self, packet: Packet):
         """
@@ -117,7 +119,15 @@ class SRFTServer:
         
         print(f"Sending file: {filename} ({file_size} bytes)")
         
-        self.sender = Sender(self._send_raw_packet)
+        if self.attack_mode:
+            interceptor = AttackInterceptor(
+                self.raw_sock, self.server_ip, SERVER_PORT,
+                self.client_ip, CLIENT_PORT, self.attack_mode
+            )
+            self.sender = Sender(interceptor.send)
+            print(f"[ATTACK MODE: {self.attack_mode}] Attack will be applied during transfer.")
+        else:
+            self.sender = Sender(self._send_raw_packet)
         self.running = True
         
         ack_thread = threading.Thread(target=self._ack_listener, daemon=True)
@@ -223,10 +233,12 @@ def main():
     parser.add_argument("server_ip", help="This server's IP address", default=SERVER_IP)
     parser.add_argument("files_directory", nargs="?", default="./test_files", help="Directory for requested files")
     parser.add_argument("--insecure", action="store_true", help="Run without encryption")
+    parser.add_argument("--attack", choices=["tamper", "replay", "inject"], default=None,
+                        help="Built-in attack mode for security testing")
 
     args = parser.parse_args()
 
-    server = SRFTServer(args.server_ip, args.files_directory, secure=not args.insecure)
+    server = SRFTServer(args.server_ip, args.files_directory, secure=not args.insecure, attack_mode=args.attack)
     server.start()
 
 
