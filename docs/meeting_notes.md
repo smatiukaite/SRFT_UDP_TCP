@@ -55,3 +55,17 @@
 ### Agenda
 
 - Phase 1 completed and switch the rols for phase 2
+
+## Meeting 5 - 25th March, 2026
+
+### Agenda
+
+- Phase 2 crypto module and Handshake Module done by code team and corresponding unit tests are needed
+- replay protection needs to be implemented and AEAD encryption needs to be integrated
+
+## Meeting 6 - 2nd April, 2026
+
+### Agenda
+
+- Test records and report needed for phase1
+- Decrese transfer time locally and on cloud
