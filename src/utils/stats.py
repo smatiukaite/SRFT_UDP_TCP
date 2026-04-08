@@ -3,9 +3,10 @@
 # Transfer statistics and report generation.
 # Tracks packets sent, retransmissions, and timing, then writes the required report file.
 
+
 class Stats:
     def __init__(self):
-        self.file_name = ''
+        self.file_name = ""
         self.file_size = 0
         self.packets_sent = 0
         self.retransmissions = 0
@@ -16,10 +17,9 @@ class Stats:
         self.handshake_success = False
         self.aead_failures = 0
         self.replay_drops = 0
-        self.sha256_match = None
 
     def write_report(self):
-        #Calculate transfer duration and format as hh:mm:ss.
+        # Calculate transfer duration and format as hh:mm:ss.
         duration = self.end_time - self.start_time
         hours, rem = divmod(int(duration), 3600)
         mins, secs = divmod(rem, 60)
@@ -32,16 +32,19 @@ class Stats:
             f"The number of packets received from the client: {self.packets_received}\n"
             f"The time duration of the file transfer: {hours:02}:{mins:02}:{secs:02}\n"
             f"Encryption enabled: {self.encryption_enabled}\n"
-            f"Handshake successful: {self.handshake_success}\n"
-            f"AEAD authentication failures: {self.aead_failures}\n"
-            f"Replay packets dropped: {self.replay_drops}\n"
-            f"SHA-256 file verification: {'Match' if self.sha256_match is True else 'Mismatch' if self.sha256_match is False else 'N/A'}\n"
         )
+
+        if self.encryption_enabled:
+            report += (
+                f"Handshake successful: {self.handshake_success}\n"
+                f"AEAD authentication failures: {self.aead_failures}\n"
+                f"Replay packets dropped: {self.replay_drops}\n"
+            )
 
         print(report)
 
         # Write report to output file.
-        with open('transfer_report.txt', 'a') as f:
+        with open("transfer_report.txt", "a") as f:
             f.write(report)
             f.write("\n" + "-" * 60 + "\n")
         print("Transfer report saved to transfer_report.txt")
