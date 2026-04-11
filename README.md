@@ -11,35 +11,51 @@ A custom UDP-based file transfer protocol with optional security (Phase 2). This
 - Administrator/root privileges (required for raw sockets)
 - Both machines must have ports 12345 and 12346 open for UDP traffic
 
-### Configuration
-Before running, set the server IP address in `config.py`:
-```python
-SERVER_IP = "127.0.0.1"  # use 127.0.0.1 for local testing
-                          # replace with server EC2 private IP for AWS testing
-```
-
 ### Starting the server
 Run on the server machine with administrator/root privileges:
 ```bash
+# Basic usage:
+# python SRFT_UDPServer.py <server_ip> [files_directory] [--insecure] [--attack {tamper,replay,inject}]
+
 # Windows (run PowerShell as Administrator):
 cd src
-python SRFT_UDPServer.py 127.0.0.1
+python SRFT_UDPServer.py 127.0.0.1 ./test_files
 
 # Linux/AWS EC2:
 cd src
-sudo python SRFT_UDPServer.py 
+sudo python SRFT_UDPServer.py 192.168.1.10
+
+# Run without encryption (Phase 1 mode):
+python SRFT_UDPServer.py 127.0.0.1 ./test_files --insecure
+
+# Run with simulated security attacks:
+python SRFT_UDPServer.py 127.0.0.1 ./test_files --attack tamper
 ```
 
 ### Starting the client
+Before running, set the server IP address and the client IP address in `config.py`:
+```python
+SERVER_IP = "127.0.0.1"  # use 127.0.0.1 for local testing
+                         # replace with server EC2 private IP for AWS testing
+CLIENT_IP = "127.0.0.1"  # use 127.0.0.1 for local testing
+                         # replace with client EC2 private IP for AWS testing
+```
+
 Run on the client machine with administrator/root privileges:
 ```bash
+# Basic usage:
+# python SRFT_UDPClient.py <filename> [--insecure]
+
 # Windows (run PowerShell as Administrator):
 cd src
-python SRFT_UDPClient.py 
+python SRFT_UDPClient.py test.txt
 
 # Linux/AWS EC2:
 cd src
-sudo python SRFT_UDPClient.py 
+sudo python SRFT_UDPClient.py test.txt
+
+# Run without encryption (Phase 1 mode):
+python SRFT_UDPClient.py test.txt --insecure
 ```
 The requested file must exist in the server's `tests/test_files/` folder.
 The received file will be saved in the `output/` folder.
