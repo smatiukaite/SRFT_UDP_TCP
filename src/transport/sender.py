@@ -146,7 +146,7 @@ class Sender:
                         
                         self.unacked_packets[seq_num] = (packet, current_time, retry_count + 1)
             
-            time.sleep(0.05)
+            time.sleep(0.02)
     
     def all_acked(self) -> bool:
         """
