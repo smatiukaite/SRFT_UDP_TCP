@@ -17,7 +17,7 @@ MAX_TIMEOUTS = 50
 
 MAX_PAYLOAD_SIZE = 8192  # Max size of the plaintext payload in each packet
 
-WINDOW_SIZE = 64
+WINDOW_SIZE = 128
 
 TIMEOUT_INTERVAL = 0.2
 
