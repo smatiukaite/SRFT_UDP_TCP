@@ -13,13 +13,13 @@ CLIENT_IP = os.environ.get("CLIENT_IP", "127.0.0.1")
 SERVER_PORT = 12345
 CLIENT_PORT = 12346
 
-MAX_TIMEOUTS = 10
+MAX_TIMEOUTS = 50
 
 MAX_PAYLOAD_SIZE = 8192  # Max size of the plaintext payload in each packet
 
 WINDOW_SIZE = 64
 
-TIMEOUT_INTERVAL = 0.5
+TIMEOUT_INTERVAL = 0.2
 
 MAX_RETRIES = 10
 
