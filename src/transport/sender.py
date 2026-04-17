@@ -95,43 +95,43 @@ class Sender:
             self.next_seq_num += 1
         
         return True
-    
+
     def handle_ack(self, ack_num: int):
         with self.lock:
-        if ack_num < self.base:
-            # Duplicate ACK — receiver is asking for self.base again
-            if ack_num == self._dup_ack_num:
-                self._dup_ack_count += 1
-                if self._dup_ack_count == 3:
-                    # Fast retransmit: immediately resend from base, don't wait for timeout
-                    self._retransmit_from_base()
-            else:
-                self._dup_ack_num = ack_num
-                self._dup_ack_count = 1
-            return
+            if ack_num < self.base:
+                # Duplicate ACK — receiver is asking for self.base again
+                if ack_num == self._dup_ack_num:
+                    self._dup_ack_count += 1
+                    if self._dup_ack_count == 3:
+                        # Fast retransmit: immediately resend from base, don't wait for timeout
+                        self._retransmit_from_base()
+                else:
+                    self._dup_ack_num = ack_num
+                    self._dup_ack_count = 1
+                return
 
-        # New ACK — slide the window forward
-        to_remove = [seq for seq in self.unacked_packets if seq <= ack_num]
-        for seq in to_remove:
-            del self.unacked_packets[seq]
-        self.base = ack_num + 1
-        self._dup_ack_count = 0
-        self._dup_ack_num = -1
+            # New ACK — slide the window forward
+            to_remove = [seq for seq in self.unacked_packets if seq <= ack_num]
+            for seq in to_remove:
+                del self.unacked_packets[seq]
+            self.base = ack_num + 1
+            self._dup_ack_count = 0
+            self._dup_ack_num = -1
 
 
     def _retransmit_from_base(self):
-    """Retransmit all unacked packets starting from base, in order (GBN semantics).
-    Must be called while holding self.lock."""
-    now = time.time()
-    for seq_num in sorted(self.unacked_packets.keys()):
-        packet, _, retry_count = self.unacked_packets[seq_num]
-        if retry_count >= MAX_RETRIES:
-            self.failed = True
-            self.running = False
-            return
-        self.send_func(packet)
-        self.retransmissions += 1
-        self.unacked_packets[seq_num] = (packet, now, retry_count + 1)
+        """Retransmit all unacked packets starting from base, in order (GBN semantics).
+        Must be called while holding self.lock."""
+        now = time.time()
+        for seq_num in sorted(self.unacked_packets.keys()):
+            packet, _, retry_count = self.unacked_packets[seq_num]
+            if retry_count >= MAX_RETRIES:
+                self.failed = True
+                self.running = False
+                return
+            self.send_func(packet)
+            self.retransmissions += 1
+            self.unacked_packets[seq_num] = (packet, now, retry_count + 1)
         
     
     def _timeout_checker(self):
@@ -148,7 +148,7 @@ class Sender:
         while self.running:
             current_time = time.time()
             with self.lock:
-        # Check if the oldest unacked packet (base) has timed out
+                # Check if the oldest unacked packet (base) has timed out
                 if self.base in self.unacked_packets:
                     _, send_time, _ = self.unacked_packets[self.base]
                     if current_time - send_time > TIMEOUT_INTERVAL:
