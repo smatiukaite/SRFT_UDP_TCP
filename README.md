@@ -77,6 +77,15 @@ md5sum output/             # on client
 # Both hashes must match for a successful transfer.
 ```
 
+## Performance Summary
+
+| File size | Packet loss rate | Time     |
+| --------- | ---------------- | -------- |
+| 100MB     | 0%               | 00:00:10 |
+| 100MB     | 2%               | 00:00:15 |
+| 100MB     | 3%               | 00:00:17 |
+| 100MB     | 4%               | 00:00:22 |
+
 ## Project structure
 
 ```
