@@ -116,11 +116,11 @@ class RawSocket:
                     plaintext = decrypt(key, nonce, ciphertext, aad)
                     packet.payload = plaintext
 
-                if self.replay_detector and not packet.is_ack():
-                    if not self.replay_detector.check_and_update(packet.seq_num):
-                        print(f"Replay detected! Dropping packet with seq_num {packet.seq_num}")
-                        self.replay_drops += 1
-                        return None, None, None
+                # if self.replay_detector and not packet.is_ack():
+                #     if not self.replay_detector.check_and_update(packet.seq_num):
+                #         print(f"Replay detected! Dropping packet with seq_num {packet.seq_num}")
+                #         self.replay_drops += 1
+                #         return None, None, None
 
                 return packet, ip_fields['src_ip'], udp_fields['src_port']
             except ValueError as e:

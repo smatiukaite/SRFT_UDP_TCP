@@ -13,15 +13,13 @@ CLIENT_IP = os.environ.get("CLIENT_IP", "127.0.0.1")
 SERVER_PORT = 12345
 CLIENT_PORT = 12346
 
-MAX_TIMEOUTS = 50
-
 MAX_PAYLOAD_SIZE = 8192  # Max size of the plaintext payload in each packet
 
 WINDOW_SIZE = 128
 
-TIMEOUT_INTERVAL = 0.2
-
-MAX_RETRIES = 10
+MAX_TIMEOUTS = 30
+TIMEOUT_INTERVAL = 1.0
+MAX_RETRIES = 100
 
 FLAG_DATA = 0x01  # This packet carries file data
 FLAG_ACK = 0x02  # This packet is an acknowledgment

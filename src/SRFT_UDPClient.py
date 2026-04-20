@@ -96,7 +96,7 @@ class SRFTClient:
         
         receiver.receive_packets()
         
-    #Handle a corrupted packet by printing a message and dropping the packet. If it's the first packet, do not send an ACK. Otherwise, resend the previous ACK.
+    # Safely close a raw socket if it was created, preventing resource leaks even if an earlier error occurred.
     @staticmethod
     def cleanup(raw_socket):
         if raw_socket is None:
@@ -106,7 +106,8 @@ class SRFTClient:
         except Exception as e:
             print(f"SRFT Client: Warning - Error during cleanup: {e}")
 
-    #Handle a corrupted packet by printing a message and dropping the packet. If it's the first packet, do not send an ACK. Otherwise, resend the previous ACK.
+    # Main client workflow: parse arguments, initialize networking, optionally perform the handshake, 
+    # request the file, receive packets, verify SHA-256, and clean up resources.
     @staticmethod
     def main():
         #Initialize raw_socket to None. Finally clause will call cleanup even if the initialization fails.
