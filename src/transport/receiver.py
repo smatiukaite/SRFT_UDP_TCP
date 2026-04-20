@@ -114,6 +114,13 @@ class Receiver:
     def handle_in_order(self, packet, now = None):
         if now is None:
             now = time.time()
+
+        # Check replay only for data packets that are accepted in order.
+        if self.raw_socket.replay_detector and not packet.is_ack():
+            if not self.raw_socket.replay_detector.check_and_update(packet.seq_num):
+                print(f"Replay detected! Dropping packet with seq_num {packet.seq_num}")
+                self.raw_socket.replay_drops += 1
+                return
             
         self.expected_sequence_number += 1
         self.valid_packets_received += 1
