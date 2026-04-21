@@ -86,6 +86,16 @@ md5sum output/             # on client
 | 100MB     | 3%               | 00:00:17 |
 | 100MB     | 4%               | 00:00:22 |
 
+## Performance Summary: Phase 2
+
+| File size |   Time   | Server packet sent | Server Retransmission | Client ACK packets | 
+| --------- | -------- | ------------------ | --------------------- | ------------------ |
+| 10 MB     | 00:00:01 | 1281               | 0                     | 81                 |
+| 100 MB    | 00:00:14 | 12801              | 0                     | 801                |
+| 500 MB    | 00:01:19 | 64001              | 279                   | 4254               |
+| 800 MB    | 00:02:03 | 102401             | 224                   | 6608               |
+| 1 GB      | 00:02:48 | 131073             | 845                   | 9051               |
+
 ## Project structure
 
 ```
