@@ -69,3 +69,10 @@
 
 - Test records and report needed for phase1
 - Decrese transfer time locally and on cloud
+
+## Meeting 7 - 19th April, 2026
+
+### Agenda
+
+- Rehearsal of Project presentation
+- Deliverable list check
