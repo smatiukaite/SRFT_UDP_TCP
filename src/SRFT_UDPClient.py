@@ -146,6 +146,42 @@ class SRFTClient:
             print(f"SRFT Client: Replay packets dropped: {raw_socket.replay_drops}")
             print("SFRT Client: File transfer complete. Closing connection...")
 
+            # Write a client-side section to transfer_report.txt so the Phase 2
+            # security metrics (AEAD failures, replay drops) — which only exist
+            # on the receiving side — are captured in the report.
+            try:
+                bytes_received = os.path.getsize(output_path) if os.path.exists(output_path) else 0
+            except Exception:
+                bytes_received = 0
+
+            if receiver.hash_match is True:
+                hash_status = "Match"
+            elif receiver.hash_match is False:
+                hash_status = "Mismatch"
+            else:
+                hash_status = "N/A"
+
+            client_report = (
+                f"[CLIENT REPORT]\n"
+                f"Name of the received file: {filename}\n"
+                f"Size of the received file: {bytes_received} bytes\n"
+                f"Total packets received: {receiver.total_packets_received}\n"
+                f"Valid packets received: {receiver.valid_packets_received}\n"
+                f"Duplicate packets: {receiver.duplicated_packets}\n"
+                f"Out-of-order packets: {receiver.out_of_order_packets}\n"
+                f"SHA-256 file verification: {hash_status}\n"
+                f"Encryption enabled: {secure}\n"
+                f"AEAD authentication failures: {raw_socket.aead_failures}\n"
+                f"Replay packets dropped: {raw_socket.replay_drops}\n"
+            )
+            try:
+                with open("transfer_report.txt", "a") as f:
+                    f.write(client_report)
+                    f.write("\n" + "-" * 60 + "\n")
+                print("SRFT Client: Transfer report saved to transfer_report.txt")
+            except Exception as e:
+                print(f"SRFT Client: Warning - could not write transfer_report.txt: {e}")
+
         except Exception as e:
             print(f"SRFT Client: Error - {e}")
             sys.exit(1)
