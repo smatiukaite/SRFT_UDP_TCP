@@ -86,6 +86,7 @@ md5sum output/             # on client
 | 100MB     | 3%               | 00:00:17 |
 | 100MB     | 4%               | 00:00:22 |
 
+
 ## Performance Summary: Phase 2
 
 | File size |   Time   | Server packet sent | Server Retransmission | Client ACK packets | 
@@ -95,6 +96,18 @@ md5sum output/             # on client
 | 500 MB    | 00:01:19 | 64001              | 279                   | 4254               |
 | 800 MB    | 00:02:03 | 102401             | 224                   | 6608               |
 | 1 GB      | 00:02:48 | 131073             | 845                   | 9051               |
+
+
+## Security tests
+
+| Test Case                 | Handshake | AEAD Failures  | Replay Drops  | SHA-256 Match  | Result |
+|---------------------------|-----------|----------------|---------------|----------------|--------|
+| Secure transfer baseline  | Success   | 0              | 0             | Yes            | Passed |
+| Wrong PSK                 | Failed    | N/A            | N/A           | No file        | Passed |
+| Tampered packet           | Success   | 1              | 0             | Yes            | Passed |
+| Replay attack             | Success   | 0              | 1             | Yes            | Passed |
+| Forged packet injection   | Success   | 1              | 0             | Yes            | Passed |
+
 
 ## Project structure
 
