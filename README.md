@@ -98,7 +98,7 @@ md5sum output/             # on client
 | 1 GB      | 00:02:48 | 131073             | 845                   | 9051               |
 
 
-## Security tests
+## Security tests using 1 mb file
 
 | Test Case                 | Handshake | AEAD Failures  | Replay Drops  | SHA-256 Match  | Result |
 |---------------------------|-----------|----------------|---------------|----------------|--------|
