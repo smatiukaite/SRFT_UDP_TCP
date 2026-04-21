@@ -103,7 +103,7 @@ md5sum output/             # on client
 | Test Case                 | Handshake | AEAD Failures  | Replay Drops  | SHA-256 Match  | Result |
 |---------------------------|-----------|----------------|---------------|----------------|--------|
 | Secure transfer baseline  | Success   | 0              | 0             | Yes            | Passed |
-| Wrong PSK                 | Failed    | N/A            | N/A           | No file        | Passed |
+| Wrong PSK                 | Failed    | N/A            | N/A           | N/A            | Passed |
 | Tampered packet           | Success   | 1              | 0             | Yes            | Passed |
 | Replay attack             | Success   | 0              | 1             | Yes            | Passed |
 | Forged packet injection   | Success   | 1              | 0             | Yes            | Passed |
