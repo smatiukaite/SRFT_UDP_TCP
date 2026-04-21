@@ -15,10 +15,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from protocol.packet import Packet
 from transport.raw_socket import RawSocket
 from transport.receiver import Receiver
-from config import MAX_RETRIES, SERVER_PORT, CLIENT_PORT, FLAG_REQ, SERVER_IP, CLIENT_IP, PSK, FLAG_CLIENT_HELLO
+from config import MAX_RETRIES, SERVER_PORT, CLIENT_PORT, FLAG_REQ, SERVER_IP, CLIENT_IP, PSK, FLAG_CLIENT_HELLO, FLAG_STATS
 from security.handshake import build_client_hello, parse_server_hello
 from security.crypto import derive_session_keys
 import time
+import struct
 
 class SRFTClient:
     @staticmethod
@@ -144,43 +145,23 @@ class SRFTClient:
 
             print(f"SRFT Client: AEAD authentication failures: {raw_socket.aead_failures}")
             print(f"SRFT Client: Replay packets dropped: {raw_socket.replay_drops}")
-            print("SFRT Client: File transfer complete. Closing connection...")
 
-            # Write a client-side section to transfer_report.txt so the Phase 2
-            # security metrics (AEAD failures, replay drops) — which only exist
-            # on the receiving side — are captured in the report.
+            # Send a final STATS packet back to the server so its
+            # transfer_report.txt reflects the true AEAD / replay counts.
+            # Those failures live on the client's receive path; the server
+            # never sees them otherwise. Sent 3x for UDP reliability (no ACK
+            # for this packet).
             try:
-                bytes_received = os.path.getsize(output_path) if os.path.exists(output_path) else 0
-            except Exception:
-                bytes_received = 0
-
-            if receiver.hash_match is True:
-                hash_status = "Match"
-            elif receiver.hash_match is False:
-                hash_status = "Mismatch"
-            else:
-                hash_status = "N/A"
-
-            client_report = (
-                f"[CLIENT REPORT]\n"
-                f"Name of the received file: {filename}\n"
-                f"Size of the received file: {bytes_received} bytes\n"
-                f"Total packets received: {receiver.total_packets_received}\n"
-                f"Valid packets received: {receiver.valid_packets_received}\n"
-                f"Duplicate packets: {receiver.duplicated_packets}\n"
-                f"Out-of-order packets: {receiver.out_of_order_packets}\n"
-                f"SHA-256 file verification: {hash_status}\n"
-                f"Encryption enabled: {secure}\n"
-                f"AEAD authentication failures: {raw_socket.aead_failures}\n"
-                f"Replay packets dropped: {raw_socket.replay_drops}\n"
-            )
-            try:
-                with open("transfer_report.txt", "a") as f:
-                    f.write(client_report)
-                    f.write("\n" + "-" * 60 + "\n")
-                print("SRFT Client: Transfer report saved to transfer_report.txt")
+                stats_payload = struct.pack('!II', raw_socket.aead_failures, raw_socket.replay_drops)
+                stats_packet = Packet(seq_num=0, ack_num=0, flags=FLAG_STATS, payload=stats_payload)
+                for _ in range(3):
+                    raw_socket.send_packet(stats_packet, raw_socket.ip, CLIENT_PORT, SERVER_IP, SERVER_PORT)
+                    time.sleep(0.05)
+                print("SRFT Client: Sent final STATS packet to server.")
             except Exception as e:
-                print(f"SRFT Client: Warning - could not write transfer_report.txt: {e}")
+                print(f"SRFT Client: Warning - could not send STATS packet: {e}")
+
+            print("SFRT Client: File transfer complete. Closing connection...")
 
         except Exception as e:
             print(f"SRFT Client: Error - {e}")

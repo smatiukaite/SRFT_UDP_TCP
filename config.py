@@ -27,6 +27,7 @@ FLAG_FIN = 0x04  # Sender is done, no more data coming
 FLAG_REQ = 0x08  # Client requesting a file (initial request)
 FLAG_CLIENT_HELLO = 0x10  # Client Hello
 FLAG_SERVER_HELLO = 0x20  # Server Hello
+FLAG_STATS = 0x40  # Client → server final stats (aead_failures, replay_drops)
 
 # Security parameters
 PSK = b"M2sWxogShvHPigFrMxOZP8rD7KnEvKBd"  # Pre-shared key for security

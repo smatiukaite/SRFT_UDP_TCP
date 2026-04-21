@@ -142,6 +142,11 @@ class Packet:
         from config import FLAG_SERVER_HELLO
         return bool(self.flags & FLAG_SERVER_HELLO)
 
+    def is_stats(self) -> bool:
+        """Check if this is a STATS packet (client reporting final metrics)."""
+        from config import FLAG_STATS
+        return bool(self.flags & FLAG_STATS)
+
     def __repr__(self) -> str:
         """Pretty print for debugging."""
         flag_names = []

@@ -5,6 +5,7 @@
 # using our reliable protocol over raw UDP sockets.
 
 import hashlib
+import struct
 import threading
 import time
 import os
@@ -63,6 +64,8 @@ class SRFTServer:
         
         self.running = True
         self.attack_mode = attack_mode
+        # Event signaled when the client's final STATS packet arrives
+        self.stats_event = threading.Event()
     
     def _send_raw_packet(self, packet: Packet):
         """
@@ -89,13 +92,25 @@ class SRFTServer:
         """
         while self.running:
             packet, src_ip = self._receive_packet()
-            
+
             if packet is None:
                 continue
-            
+
             if packet.is_ack():
                 self.sender.handle_ack(packet.ack_num)
                 self.stats.packets_received += 1
+            elif packet.is_stats():
+                # Client's final report: 2x uint32 = aead_failures, replay_drops.
+                # These counts live on the client (only it sees tampered/forged
+                # DATA packets), so we overwrite the server-side fallbacks.
+                try:
+                    client_aead, client_replay = struct.unpack('!II', packet.payload[:8])
+                    self.stats.aead_failures = client_aead
+                    self.stats.replay_drops = client_replay
+                    self.stats_event.set()
+                    print(f"Received client STATS: aead_failures={client_aead}, replay_drops={client_replay}")
+                except Exception as e:
+                    print(f"Failed to parse STATS packet: {e}")
     
     def _send_file(self, filename: str):
         """
@@ -129,7 +144,9 @@ class SRFTServer:
         else:
             self.sender = Sender(self._send_raw_packet)
         self.running = True
-        
+        # Fresh event per transfer — listener will set() when client's STATS arrives.
+        self.stats_event.clear()
+
         ack_thread = threading.Thread(target=self._ack_listener, daemon=True)
         ack_thread.start()
         
@@ -152,14 +169,21 @@ class SRFTServer:
             print("WARNING: Timed out waiting for ACKs")
         
         self.stats.end_time = time.time()
-        
+
+        # Wait briefly for the client's final STATS packet so the report
+        # reflects true AEAD / replay counts (those happen on the client's
+        # receive path — server never sees them otherwise).
+        self.stats_event.wait(timeout=2.0)
+
         sender_stats = self.sender.get_stats()
         self.stats.packets_sent = sender_stats['packets_sent']
         self.stats.retransmissions = sender_stats['retransmissions']
         self.stats.handshake_success = self.session_keys is not None
         self.stats.encryption_enabled = self.secure
-        self.stats.aead_failures = self.raw_sock.aead_failures
-        self.stats.replay_drops = self.raw_sock.replay_drops
+        # Only fall back to server-side counters if client never reported.
+        if not self.stats_event.is_set():
+            self.stats.aead_failures = self.raw_sock.aead_failures
+            self.stats.replay_drops = self.raw_sock.replay_drops
 
         self.running = False
         self.sender.stop()
