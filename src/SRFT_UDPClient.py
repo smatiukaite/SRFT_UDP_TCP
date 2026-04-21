@@ -142,6 +142,7 @@ class SRFTClient:
             else:
                 print("SRFT Client: SHA-256 file verification: N/A")
 
+            print(f"SRFT Client: AEAD authentication failures: {raw_socket.aead_failures}")
             print(f"SRFT Client: Replay packets dropped: {raw_socket.replay_drops}")
             print("SFRT Client: File transfer complete. Closing connection...")
 
