@@ -91,14 +91,16 @@ class AttackInterceptor:
             from protocol.packet import Packet as P
             packet = P(packet.seq_num, packet.ack_num, packet.flags, nonce + ciphertext)
 
-        payload_bytes = bytearray(packet.to_bytes())
-
-        # Flip 2 bits in the encrypted payload area (after the 14-byte SRFT header)
-        if len(payload_bytes) > 16:
-            payload_bytes[15] ^= 0x01  # flip bit 0 of byte 15
-            payload_bytes[16] ^= 0x02  # flip bit 1 of byte 16
-
-        payload_bytes = bytes(payload_bytes)
+        # Flip 2 bits in the ciphertext (payload = nonce[12] + ciphertext+tag)
+        # Then rebuild the packet so the checksum is recomputed over the tampered
+        # bytes — otherwise the receiver rejects it at the checksum layer before
+        # AEAD ever runs.
+        tampered_payload = bytearray(packet.payload)
+        if len(tampered_payload) > 14:
+            tampered_payload[13] ^= 0x01  # flip a bit in the ciphertext
+            tampered_payload[14] ^= 0x02
+        tampered_packet = P(packet.seq_num, packet.ack_num, packet.flags, bytes(tampered_payload))
+        payload_bytes = tampered_packet.to_bytes()
         udp_header = build_udp_header(self.server_port, self.client_port, len(payload_bytes))
         ip_payload_length = len(udp_header) + len(payload_bytes)
         ip_header = build_ip_header(self.server_ip, self.client_ip, ip_payload_length)
@@ -131,17 +133,23 @@ class AttackInterceptor:
 
     def _send_forged(self):
         """
-        Send a completely forged packet — random garbage bytes as the 
-        UDP payload. The client's AEAD will reject it.
+        Send a forged packet with a valid SRFT header/checksum but bogus
+        ciphertext. The checksum layer accepts it; AEAD rejects it because
+        the GCM tag won't verify.
         """
         from protocol.ip_header import build_ip_header
         from protocol.udp_header import build_udp_header
+        from protocol.packet import Packet as P
+        from config import FLAG_DATA
 
-        # 200 bytes of random garbage pretending to be an SRFT packet
-        garbage_payload = os.urandom(200)
-        udp_header = build_udp_header(self.server_port, self.client_port, len(garbage_payload))
-        ip_payload_length = len(udp_header) + len(garbage_payload)
+        # Random bytes as the "encrypted" payload (nonce + ciphertext + tag).
+        # Packet.to_bytes() computes a valid checksum so the receiver reaches AEAD.
+        forged = P(seq_num=9999, ack_num=0, flags=FLAG_DATA, payload=os.urandom(150))
+        payload_bytes = forged.to_bytes()
+
+        udp_header = build_udp_header(self.server_port, self.client_port, len(payload_bytes))
+        ip_payload_length = len(udp_header) + len(payload_bytes)
         ip_header = build_ip_header(self.server_ip, self.client_ip, ip_payload_length)
 
-        raw_frame = ip_header + udp_header + garbage_payload
+        raw_frame = ip_header + udp_header + payload_bytes
         self.raw_socket.sock.sendto(raw_frame, (self.client_ip, self.client_port))
