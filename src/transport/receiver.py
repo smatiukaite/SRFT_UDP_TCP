@@ -81,6 +81,20 @@ class Receiver:
 
         self.total_packets_received += 1
 
+        # Check replay before classifying packet order.
+        # ACKs are not part of receiver-side file delivery, so skip them.
+        if self.raw_socket.replay_detector and not packet.is_ack():
+            if not self.raw_socket.replay_detector.check_and_update(packet.seq_num):
+                print(f"Replay detected! Dropping packet with seq_num {packet.seq_num}")
+                self.raw_socket.replay_drops += 1
+
+                # Re-send cumulative ACK for the last valid in-order packet so sender
+                #continues from the correct point.
+                if self.expected_sequence_number > 0:
+                    self.flush_pending_ack(force=False)
+                    self.send_cumulative_ack(self.expected_sequence_number - 1, force=True)
+                return
+
         #Expected sequence number.
         if packet.seq_num == self.expected_sequence_number:
             if self.DEBUG and packet.seq_num % 500 == 0:
@@ -115,13 +129,6 @@ class Receiver:
         if now is None:
             now = time.time()
 
-        # Check replay only for data packets that are accepted in order.
-        if self.raw_socket.replay_detector and not packet.is_ack():
-            if not self.raw_socket.replay_detector.check_and_update(packet.seq_num):
-                print(f"Replay detected! Dropping packet with seq_num {packet.seq_num}")
-                self.raw_socket.replay_drops += 1
-                return
-            
         self.expected_sequence_number += 1
         self.valid_packets_received += 1
 
