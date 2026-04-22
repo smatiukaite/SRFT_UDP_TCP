@@ -66,6 +66,8 @@ class SRFTServer:
         self.attack_mode = attack_mode
         # Event signaled when the client's final STATS packet arrives
         self.stats_event = threading.Event()
+
+        self.ack_thread = None
     
     def _send_raw_packet(self, packet: Packet):
         """
@@ -96,10 +98,21 @@ class SRFTServer:
             if packet is None:
                 continue
 
+            # Only process packets from the current client IP (ignore others).
+            if src_ip != self.client_ip:
+                continue
+
             if packet.is_ack():
                 self.sender.handle_ack(packet.ack_num)
                 self.stats.packets_received += 1
-            elif packet.is_stats():
+            elif packet.is_stats():    
+                if self.stats_event.is_set():
+                    continue
+
+                if len(packet.payload) != 8:
+                    print("Ignored malformed STATS packet: payload too short")
+                    continue
+                
                 # Client's final report: 2x uint32 = aead_failures, replay_drops.
                 # These counts live on the client (only it sees tampered/forged
                 # DATA packets), so we overwrite the server-side fallbacks.
@@ -147,8 +160,8 @@ class SRFTServer:
         # Fresh event per transfer — listener will set() when client's STATS arrives.
         self.stats_event.clear()
 
-        ack_thread = threading.Thread(target=self._ack_listener, daemon=True)
-        ack_thread.start()
+        self.ack_thread = threading.Thread(target=self._ack_listener, daemon=True)
+        self.ack_thread.start()
         
         self.stats.start_time = time.time()
         
@@ -162,6 +175,11 @@ class SRFTServer:
 
         self.sender.send_packet(sha256.digest(), FLAG_FIN)
         
+        # # This code was added to test the hash mismatch detection on the client side.
+        # bad_hash = bytearray(sha256.digest())
+        # bad_hash[0] ^= 0x01
+        # self.sender.send_packet(bytes(bad_hash), FLAG_FIN)
+
         print("Waiting for all ACKs...")
         if self.sender.wait_for_completion(timeout=60.0):
             print("All packets acknowledged!")
@@ -187,6 +205,10 @@ class SRFTServer:
 
         self.running = False
         self.sender.stop()
+
+        if self.ack_thread is not None:
+            self.ack_thread.join(timeout=3.0)
+            self.ack_thread = None
     
     def start(self):
         """
