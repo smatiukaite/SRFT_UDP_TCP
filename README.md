@@ -157,7 +157,7 @@ pytest tests/ --cov=src --cov-report=html
 
 | Test Case                 | Handshake | AEAD Failures  | Replay Drops  | SHA-256 Match  | Result | Time     |
 |---------------------------|-----------|----------------|---------------|----------------|--------|----------|
-| Secure transfer baseline  | Success   | 0              | 0             | Yes            | Passed | 00:00:00 |
+| Secure transfer baseline  | Success   | 0              | 0             | Yes            | Passed | 00:00:01 |
 | Wrong PSK                 | Failed    | N/A            | N/A           | N/A            | Passed |
 | Tampered packet           | Success   | 1              | 0             | Yes            | Passed |
 | Replay attack             | Success   | 0              | 1             | Yes            | Passed |
@@ -181,7 +181,7 @@ pytest tests/ --cov=src --cov-report=html
 |---------------------------|-----------|----------------|---------------|----------------|--------|----------|
 | Secure transfer baseline  | Success   | 0              | 0             | Yes            | Passed | 00:01:36 |
 | Wrong PSK                 | Failed    | N/A            | N/A           | N/A            | Passed | 
-| Tampered packet           | Success   | 1              | 0             | Yes            | Passed |
+| Tampered packet           | Success   | 1              | 0             | Yes            | Passed | 
 | Replay attack             | Success   | 0              | 1             | Yes            | Passed |
 | Forged packet injection   | Success   | 1              | 0             | Yes            | Passed |
 
