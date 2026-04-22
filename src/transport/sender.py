@@ -76,7 +76,7 @@ class Sender:
             with self.lock:
                 if self.next_seq_num < self.base + WINDOW_SIZE:
                     break  
-            time.sleep(0.01)
+            time.sleep(0.001)
         
         with self.lock:
             packet = Packet(
@@ -94,6 +94,9 @@ class Sender:
             
             self.next_seq_num += 1
         
+        # Pacing delay OUTSIDE the lock: prevents bursting that overwhelms receiver.
+        time.sleep(0.0002)
+
         return True
 
     def handle_ack(self, ack_num: int):
@@ -110,7 +113,7 @@ class Sender:
                     self._dup_ack_count = 1
                 return
 
-            # New ACK — slide the window forward
+            # New ACK — slide the window forward.
             to_remove = [seq for seq in self.unacked_packets if seq <= ack_num]
             for seq in to_remove:
                 del self.unacked_packets[seq]
@@ -132,8 +135,11 @@ class Sender:
             self.send_func(packet)
             self.retransmissions += 1
             self.unacked_packets[seq_num] = (packet, now, retry_count + 1)
-        
-    
+
+        # Reset dup-ack state to prevent cascading retransmits.
+        self._dup_ack_count = 0
+        self._dup_ack_num = -1
+
     def _timeout_checker(self):
         """
         Background thread that checks for packet timeouts.

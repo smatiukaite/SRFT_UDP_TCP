@@ -13,8 +13,8 @@ from protocol.packet import Packet
 from config import FLAG_ACK, FLAG_FIN, MAX_TIMEOUTS
 from utils.file_handler import FileHandler
 class Receiver:
-    ACK_EVERY_N_PACKETS = 16
-    ACK_DELAY_SECONDS = 0.01
+    ACK_EVERY_N_PACKETS = 2
+    ACK_DELAY_SECONDS = 0.0005
     DEBUG = False
 
     #Create a constructor for receiver with the raw socket and output file path.
@@ -104,7 +104,8 @@ class Receiver:
 
         #Duplicate packet/ replayed old packet.
         elif packet.seq_num < self.expected_sequence_number:
-            print(f"Received duplicate packet with sequence number {packet.seq_num}, expected {self.expected_sequence_number}.")
+            if self.DEBUG:
+                print(f"Received duplicate packet with sequence number {packet.seq_num}, expected {self.expected_sequence_number}.")
             self.raw_socket.replay_drops += 1
             self.handle_duplicate(packet)
         

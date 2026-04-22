@@ -45,7 +45,7 @@ class SRFTClient:
     @staticmethod
     def initialize_client(client_ip, output_filename):
         raw_socket = RawSocket(client_ip, CLIENT_PORT)
-        raw_socket.set_timeout(2.0) #Set a timeout for socket operations to prevent hanging indefinitely
+        raw_socket.set_timeout(0.05) #Set a timeout for socket operations to prevent hanging indefinitely
         receiver = Receiver(raw_socket, output_filename)
         
         return raw_socket, receiver

@@ -37,6 +37,7 @@ class RawSocket:
 
         #Set the IP_HDRINCL option to tell the kernel that we will provide our own IP header.
         self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 4 * 1024 * 1024)
 
         #Bind the socket to the IP address. This is necessary to receive packets sent to this IP.
         try:

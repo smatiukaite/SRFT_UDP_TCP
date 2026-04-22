@@ -18,7 +18,7 @@ MAX_PAYLOAD_SIZE = 8192  # Max size of the plaintext payload in each packet
 WINDOW_SIZE = 128
 
 MAX_TIMEOUTS = 30
-TIMEOUT_INTERVAL = 1.0
+TIMEOUT_INTERVAL = 4.0
 MAX_RETRIES = 100
 
 FLAG_DATA = 0x01  # This packet carries file data
