@@ -46,6 +46,16 @@ cd573cfaace07e7949bc0c46028904ff  test_1gb_file
 | test_800mb_file | ![](test_800mb_server_2.png) | ![](test_800mb_client_2.png) | 00:04:35 |
 | test_1gb_file   | ![](test_1gb_server_2.png)   | ![](test_1gb_client_2.png)   | 00:04:43 |
 
+### 3% Packet Loss
+
+| File Name       | Server Report Screenshot     | Client Report Screenshot     | Time     |
+| --------------- | ---------------------------- | ---------------------------- | -------- |
+| test_10mb_file  | ![](test_10mb_server_3.png)  | ![](test_10mb_client_3.png)  | 00:00:02 |
+| test_100mb_file | ![](test_100mb_server_3.png) | ![](test_100mb_client_3.png) | 00:00:30 |
+| test_500mb_file | ![](test_500mb_server_3.png) | ![](test_500mb_client_3.png) | 00:02:53 |
+| test_800mb_file | ![](test_800mb_server_3.png) | ![](test_800mb_client_3.png) | 00:04:45 |
+| test_1gb_file   | ![](test_1gb_server_3.png)   | ![](test_1gb_client_3.png)   | 00:05:02 |
+
 ### 4% Packet Loss
 
 | File Name       | Server Report Screenshot     | Client Report Screenshot     | Time     |
