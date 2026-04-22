@@ -180,6 +180,7 @@ class Receiver:
             self.flush_pending_ack(force = False)
             self.send_cumulative_ack(self.expected_sequence_number - 1, force = True)
     
+    # Check if we have a pending ACK that is due to be sent (ACK delay timer expired). If so, send the ACK.
     def maybe_send_delayed_ack(self, now = None):
         if now is None:
             now = time.time()
@@ -187,6 +188,7 @@ class Receiver:
         if (self.pending_ack_number is not None and self.pending_ack_deadline is not None and now >= self.pending_ack_deadline):
             self.flush_pending_ack(force = False)
 
+    # Send an ACK for the last in-order packet received, and reset the delayed ACK state.
     def flush_pending_ack(self, force = False):
         if self.pending_ack_number is None:
             return

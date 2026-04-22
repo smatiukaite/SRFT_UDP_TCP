@@ -1,12 +1,12 @@
-# Client entry point
-
 # Main client program for Secure Reliable File Transfer.
-# The client sends a file name request to the server, then sends the file
+# The client sends a file name request to the server, then sends the file request, receives the file data, 
+# and verifies the integrity of the received file using SHA-256.
+# The client also performs the handshake to establish session keys for encryption if the secure mode is enabled. 
+# Finally, it prints the transfer statistics and saves a report to transfer_report.txt.
 
 # Note: This code was written based on the book "Computer Networking: A Top-Down Approach" by Kurose and Ross, specifically chapter 3.4 
-# 'Principles of Reliable Data Transfer', on reliable data transfer protocols (pipelined sliding window protocol). We are using Go-Back-N (GBN) approach.
-
-#SRFT_UDPClient takes a filename as input and sends that filename to the server to request the download,
+# 'Principles of Reliable Data Transfer', on reliable data transfer protocols (pipelined sliding window protocol). 
+# We are using Go-Back-N (GBN) approach.
 
 import os
 import sys
@@ -22,8 +22,8 @@ import time
 import struct
 
 class SRFTClient:
-    @staticmethod
     #Parse command line arguments to get the filename to request from the server. Validate the filename and exit with an error message if it's invalid.
+    @staticmethod
     def parse_arguments():
         parser = argparse.ArgumentParser(description="SRFT Client")
         parser.add_argument("filename", help="Name of the file to request from the server")
@@ -50,6 +50,8 @@ class SRFTClient:
         
         return raw_socket, receiver
 
+    # Perform the handshake with the server to establish session keys for encryption. 
+    # Return the session keys and session ID if successful, or exit with an error message if the handshake fails after the maximum number of retries.
     @staticmethod
     def perform_handshake(raw_socket):
         print("SRFT Client: Initiating handshake...")
