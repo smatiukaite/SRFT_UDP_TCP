@@ -14,7 +14,7 @@ from config import FLAG_ACK, FLAG_FIN, MAX_TIMEOUTS
 from utils.file_handler import FileHandler
 class Receiver:
     ACK_EVERY_N_PACKETS = 2
-    ACK_DELAY_SECONDS = 0.0005
+    ACK_DELAY_SECONDS = 0.002
     DEBUG = False
 
     #Create a constructor for receiver with the raw socket and output file path.

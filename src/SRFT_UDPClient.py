@@ -41,7 +41,7 @@ class SRFTClient:
 
         return filename, secure
 
-    #Initialize the client by creating a raw socket, sender, receiver, and file handler. Return these objects for use in the main function.
+    # Initialize the client networking components by creating the raw socket and the receiver used to save incoming file data.
     @staticmethod
     def initialize_client(client_ip, output_filename):
         raw_socket = RawSocket(client_ip, CLIENT_PORT)
@@ -83,14 +83,25 @@ class SRFTClient:
     @staticmethod
     def send_file_request(raw_socket, filename):
         if raw_socket is None:
-            print("SRFT Client: Error - Sender not initialized. Cannot send file request.")
+            print("SRFT Client: Error - Raw socket not initialized. Cannot send file request.")
             return
         
-        req_packet = Packet(seq_num = 0, ack_num = 0, flags = FLAG_REQ, payload = filename.encode('utf-8'))
-        raw_socket.send_packet(req_packet, raw_socket.ip, CLIENT_PORT, SERVER_IP, SERVER_PORT)
+        # Create a packet containing the requested filename.
+        req_packet = Packet(seq_num = 0, 
+                            ack_num = 0, 
+                            flags = FLAG_REQ, 
+                            payload = filename.encode('utf-8'))
+        
+        # Send the request packet from the client's IP and port to the server's IP and port using the raw socket.
+        raw_socket.send_packet(req_packet, 
+                               raw_socket.ip, 
+                               CLIENT_PORT, 
+                               SERVER_IP, 
+                               SERVER_PORT)
         print(f"SRFT Client: File request for '{filename}' sent to server.")
         
     #Send a file request to the server by creating a packet with the filename and sending it to the server's IP and port.
+    # It is just a safety check to ensure the receiver is initialized before trying to receive packets.
     @staticmethod
     def receive_file_data(receiver):
         if receiver is None:
@@ -121,11 +132,15 @@ class SRFTClient:
             filename, secure = SRFTClient.parse_arguments()
             print(f"Requesting file '{filename}' from server on port {SERVER_PORT}...")
 
+            # Create output directory if it doesn't exist and construct the output file path for the received file.
             output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'output')
             os.makedirs(output_dir, exist_ok=True)
             output_path = os.path.join(output_dir, filename)
+
+            # Create a raw socket for sending and receiving packets, and a receiver to handle incoming file data.
             raw_socket, receiver = SRFTClient.initialize_client(CLIENT_IP, output_path)
 
+            # Check if the secure mode is enabled for the handshake. If yes, cryptography will be enabled on the raw socket.
             if secure:
                 session_keys, session_id = SRFTClient.perform_handshake(raw_socket)
                 raw_socket.enable_crypto(session_keys, session_id)
@@ -141,7 +156,7 @@ class SRFTClient:
             if receiver.hash_match is True:
                 print("SRFT Client: SHA-256 file verification: Match")
             elif receiver.hash_match is False:
-                print("SRFT Client: SHA-256 file verification: Mismatch!")
+                print("SRFT Client: SHA-256 file verification: Mismatch!") # File corruption detected
             else:
                 print("SRFT Client: SHA-256 file verification: N/A")
 
@@ -156,14 +171,14 @@ class SRFTClient:
             try:
                 stats_payload = struct.pack('!II', raw_socket.aead_failures, raw_socket.replay_drops)
                 stats_packet = Packet(seq_num=0, ack_num=0, flags=FLAG_STATS, payload=stats_payload)
-                for _ in range(3):
+                for _ in range(3): # Send multiple times to increase chance of delivery since this is UDP and we won't get an ACK back.
                     raw_socket.send_packet(stats_packet, raw_socket.ip, CLIENT_PORT, SERVER_IP, SERVER_PORT)
                     time.sleep(0.05)
                 print("SRFT Client: Sent final STATS packet to server.")
             except Exception as e:
                 print(f"SRFT Client: Warning - could not send STATS packet: {e}")
 
-            print("SFRT Client: File transfer complete. Closing connection...")
+            print("SRFT Client: File transfer complete. Closing connection...")
 
         except Exception as e:
             print(f"SRFT Client: Error - {e}")

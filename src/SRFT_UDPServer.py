@@ -39,6 +39,7 @@ class SRFTServer:
     7. Output statistics
     """
     
+    # Server constuctor. Initializes the raw socket and sets up state variables.
     def __init__(self, server_ip: str, files_directory: str = './test_files', secure: bool = True, attack_mode: str = None):
         """
         Initialize the server.
@@ -101,7 +102,8 @@ class SRFTServer:
             # Only process packets from the current client IP (ignore others).
             if src_ip != self.client_ip:
                 continue
-
+            
+            # Extract and handle ACKs and STATS packets.
             if packet.is_ack():
                 self.sender.handle_ack(packet.ack_num)
                 self.stats.packets_received += 1
@@ -160,14 +162,18 @@ class SRFTServer:
         # Fresh event per transfer — listener will set() when client's STATS arrives.
         self.stats_event.clear()
 
+        # Start the ACK listener thread to process incoming ACKs while we send the file.
         self.ack_thread = threading.Thread(target=self._ack_listener, daemon=True)
         self.ack_thread.start()
         
         self.stats.start_time = time.time()
         
+        # Create a SHA-256 hash obj and open the file.
         sha256 = hashlib.sha256()
         file_handler = FileHandler()
         file_handler.open_input_file(filepath)
+
+        # Read the file chunk by chunk and send data packets.
         for chunk in file_handler.read_file_chunks(MAX_PAYLOAD_SIZE):
             sha256.update(chunk)
             self.sender.send_packet(chunk, FLAG_DATA)
@@ -230,23 +236,29 @@ class SRFTServer:
                 if not self.secure:
                     print(f"Ignored ClientHello from {src_ip}: Server is running in insecure mode.")
                     continue
+
+                # Handle the hanshake.
                 try:
                     print(f"Received ClientHello from {src_ip}")
                     self.client_ip = src_ip
                     client_nonce = parse_client_hello(PSK, packet.payload)
-                    payload, server_nonce, session_id = build_server_hello(PSK, client_nonce)
+                    payload, server_nonce, session_id = build_server_hello(PSK, client_nonce) # Server creates its own response nonce.
                     self.session_keys = derive_session_keys(PSK, client_nonce, server_nonce)
                     self.session_id = session_id
-                    # Send ServerHello
+
+                    # Send ServerHello: server wraps its responce payload into a packet and sends it back to the client.
                     hello_packet = Packet(seq_num=0, ack_num=0, flags=FLAG_SERVER_HELLO, payload=payload)
                     self.raw_sock.send_packet(hello_packet, self.server_ip, SERVER_PORT, self.client_ip, CLIENT_PORT)
                     print("Sent ServerHello, handshake complete.")
+
+                    # After this future packets sent/received on the raw socket will be encrypted/decrypted automatically.
                     self.raw_sock.enable_crypto(self.session_keys, self.session_id)
                 except Exception as e:
                     print(f"Handshake failed: {e}")
                 continue
 
             if packet.is_request():
+                # Enforce handshake in secure mode - the security gate.
                 if self.secure and self.session_keys is None:
                     print(f"Ignored request from {src_ip}: Handshake not completed.")
                     continue

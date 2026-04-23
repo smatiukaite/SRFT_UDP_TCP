@@ -26,7 +26,7 @@ class RawSocket:
         self.ip = ip
         self.port = port
         
-        #Look for the root privileges.
+        # Create a raw socket. This requires root privileges.
         try:
             self.sock= socket.socket(socket.AF_INET, 
                                      socket.SOCK_RAW, 
@@ -37,11 +37,13 @@ class RawSocket:
 
         #Set the IP_HDRINCL option to tell the kernel that we will provide our own IP header.
         self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
+
+        # Increase the receive buffer size to handle high throughput and prevent packet drops due to buffer overflow.
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 4 * 1024 * 1024)
 
-        #Bind the socket to the IP address. This is necessary to receive packets sent to this IP.
+        #Bind the raw socket to the IP address. This is necessary to receive packets sent to this IP.
         try:
-            self.sock.bind((self.ip, 0)) #We are binding to IP and any port (0). Will filter the packets by port in the receive function.
+            self.sock.bind((self.ip, 0)) #We are binding to IP and any port (0 a placeholder). Will filter the packets by port in the receive function.
         except Exception as e:
             print(f"Error binding raw socket to {self.ip}: {e}")
             sys.exit(1)
@@ -68,17 +70,23 @@ class RawSocket:
                      source_port: int, 
                      destination_ip: str, 
                      destination_port: int)-> None:
+        
         # Apply encryption if crypto is enabled
         if self.session_keys:
             aad = build_aad(self.session_id, packet.seq_num, packet.ack_num, packet.flags)
             key = self.session_keys['ack_key'] if packet.is_ack() else self.session_keys['enc_key']
             nonce, ciphertext = encrypt(key, packet.payload, aad)
+
             # Create a new packet with the encrypted payload
             packet = Packet(packet.seq_num, packet.ack_num, packet.flags, nonce + ciphertext)
 
         payload_bytes = packet.to_bytes()
         udp_header = build_udp_header (source_port, destination_port, len(payload_bytes))
+
+        # Compute total IP payload length for the IP packet.
         ip_payload_length = len(udp_header) + len(payload_bytes)
+
+        # Build a raw IPv4 header.
         ip_header = build_ip_header (source_ip, destination_ip, ip_payload_length)
 
         raw_frame = ip_header + udp_header + payload_bytes
@@ -102,7 +110,7 @@ class RawSocket:
             if udp_fields['dst_port'] != self.port:
                 return None, None, None
 
-            # Skip UDP header (IP header + udp header).
+            # Skip UDP header (IP header + udp header). Extract the UDP payload only.
             udp_header_length = 8
             payload_bytes = frame_bytes[ip_header_length + udp_header_length:]
             

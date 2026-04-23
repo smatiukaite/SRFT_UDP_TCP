@@ -71,12 +71,12 @@ class Sender:
             True if sent successfully, False if max retries exceeded
         """
         
-        
+        # Wait until the window has space.
         while True:
             with self.lock:
                 if self.next_seq_num < self.base + WINDOW_SIZE:
                     break  
-            time.sleep(0.001)
+            time.sleep(0.001) # saving some CPU while waiting for ACKs to slide the window.
         
         with self.lock:
             packet = Packet(
@@ -89,7 +89,7 @@ class Sender:
             self.send_func(packet)
             self.packets_sent += 1
             
-            
+            # Track this packet as unacknowledged, with the time it was sent and retry count.
             self.unacked_packets[self.next_seq_num] = (packet, time.time(), 0)
             
             self.next_seq_num += 1
@@ -99,6 +99,7 @@ class Sender:
 
         return True
 
+    # Handle an incoming ACK for the given sequence number and the sliding window logic.
     def handle_ack(self, ack_num: int):
         with self.lock:
             if ack_num < self.base:
@@ -114,7 +115,7 @@ class Sender:
                 return
 
             # New ACK — slide the window forward.
-            to_remove = [seq for seq in self.unacked_packets if seq <= ack_num]
+            to_remove = [seq for seq in self.unacked_packets if seq <= ack_num] # Remove all packets up to and including ack_num from unacked
             for seq in to_remove:
                 del self.unacked_packets[seq]
             self.base = ack_num + 1
